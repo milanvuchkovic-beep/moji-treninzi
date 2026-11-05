@@ -307,6 +307,17 @@
       width: 100%;
       min-height: 320px;
     }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+      gap: var(--space-md);
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    #sync-icon.syncing {
+      animation: spin 1s linear infinite;
+    }
 
     /* Tables */
     .table-responsive {
@@ -442,7 +453,9 @@
           </button>
 
           <button class="btn btn-primary" onclick="syncGoogleSheets()">
-            <i data-lucide="refresh-cw" style="width:16px;height:16px;" id="sync-icon"></i>
+            <span id="sync-icon" style="display:inline-flex;width:16px;height:16px;">
+              <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
+            </span>
             <span id="btn-sync-text">Sinhronizuj Sheets</span>
           </button>
         </div>
@@ -505,21 +518,21 @@
           <span class="data-label" id="lbl-bench-pr">BENCH PRESS (BARBELL) MAX</span>
           <div class="metric-value tabular-val" id="kpi-bench">100 <span style="font-size: 1rem; color: var(--on-surface-variant);">kg</span></div>
           <div class="metric-delta">
-            <span class="status-chip" style="font-size: 0.7rem;">Procena 1RM: 110 kg</span>
+            <span class="status-chip" id="kpi-bench-epley" style="font-size: 0.7rem;">Procena 1RM: —</span>
           </div>
         </div>
 
         <div class="metric-card">
           <span class="data-label" id="lbl-row-pr">CONCEPT2 500m SPLIT PR</span>
-          <div class="metric-value tabular-val" id="kpi-row-pr">1:41.0 <span style="font-size: 1rem; color: var(--on-surface-variant);">min/500m</span></div>
+          <div class="metric-value tabular-val" id="kpi-row-pr">—</div>
           <div class="metric-delta">
-            <span style="color: var(--primary);">405 W vršna snaga @ D10</span>
+            <span id="kpi-row-sub" style="color: var(--primary);">—</span>
           </div>
         </div>
 
         <div class="metric-card">
           <span class="data-label" id="lbl-pullups">PULL UP (Neutral Grip)</span>
-          <div class="metric-value tabular-val" id="kpi-pullups">7 <span style="font-size: 1rem; color: var(--on-surface-variant);">ponavljanja</span></div>
+          <div class="metric-value tabular-val" id="kpi-pullups">—</div>
           <div class="metric-delta">
             <span id="lbl-bw-sub">Sa sopstvenih ~116 kg</span>
           </div>
@@ -569,11 +582,11 @@
         <div style="display: flex; gap: var(--space-md); align-items: center; flex-wrap: wrap; font-size: 0.8125rem;">
           <span class="data-label" id="lbl-custom-range">Prilagođeni opseg:</span>
           <div style="display: flex; gap: var(--space-xs); align-items: center;">
-            <label for="date-from" class="data-label">OD:</label>
+            <label for="date-from" class="data-label" id="lbl-date-from">OD:</label>
             <input type="date" id="date-from" onchange="handleCustomDateChange()" style="width: auto; padding: 4px 8px;">
           </div>
           <div style="display: flex; gap: var(--space-xs); align-items: center;">
-            <label for="date-to" class="data-label">DO:</label>
+            <label for="date-to" class="data-label" id="lbl-date-to">DO:</label>
             <input type="date" id="date-to" onchange="handleCustomDateChange()" style="width: auto; padding: 4px 8px;">
           </div>
           <button class="btn btn-chip" onclick="resetDateRange()" id="btn-reset-date">Resetuj</button>
@@ -621,8 +634,8 @@
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--space-md);">
           <div>
             <div style="display: flex; align-items: center; gap: var(--space-xs); margin-bottom: 4px;">
-              <span class="status-chip-cyan status-chip">CONCEPT2 PM5</span>
-              <span class="status-chip-warn status-chip">DAMPER ZAKUCAN NA 10</span>
+              <span class="status-chip-cyan status-chip" id="c2-badge-pm">CONCEPT2 PM5</span>
+              <span class="status-chip-warn status-chip" id="c2-badge-damper">DAMPER ZAKUCAN NA 10</span>
             </div>
             <h2 id="c2-main-title">Concept2 Veslač • Anaerobni Sprintovi & VO2 Max</h2>
             <p style="color: var(--on-surface-variant); font-size: 0.9375rem; max-width: 800px;" id="c2-main-desc">
@@ -889,6 +902,7 @@
       'Chest Fly (Machine)': 'Chest',
       'Butterfly (Pec Deck)': 'Chest',
       'Chest Fly (Dumbbell)': 'Chest',
+      'Pullover (Dumbbell)': 'Back',
       'Seated Chest Flys (Cable)': 'Chest',
       'Low Cable Fly Crossovers': 'Chest',
       'Chest Dip': 'Chest',
@@ -937,6 +951,7 @@
       'Standing Calf Raise (Dumbbell)': 'Legs',
       'Standing Calf Raise': 'Legs',
       'Lunge (Dumbbell)': 'Legs',
+      'Jump Squat': 'Legs',
       'Rowing Machine': 'Cardio',
       'Treadmill': 'Cardio',
       'Running': 'Cardio',
@@ -1272,9 +1287,78 @@
           "Opusti stisak: Ne stezati dršku 'belim zglobovima' da se ne zamara lakat.",
           "Pri visini od 197cm, dugačak hod nogu daje ogroman leveridž i vate."
         ],
-        milansStats: "Vršni tempo: 1:41 / 500m (preko 405 W). HIIT standard: 4x500m @ 1:48."
+        milansStats: "Vršni tempo: 1:41.0 / 500m je oko 340 W po Concept2 formuli (ne 405 W). HIIT standard: 4×500 m @ 1:48."
       }
     ];
+
+    const GUIDE_EN = {
+      "Bench Press (Barbell)": {
+        target: "Chest & Front Delts",
+        risk: "High shoulder and elbow risk with long levers",
+        keyCues: [
+          "Scapular retraction: pin the shoulder blades into the bench before you unrack.",
+          "Elbow angle 45° to 70° from the torso — never a 90° T-position.",
+          "Grip width: at 197 cm the forearms must be vertical at the bottom.",
+          "Elbow warning: if the right elbow sends a false alarm, switch immediately to 45° dumbbells."
+        ],
+        milansStats: "Personal record: 100 kg × 2. Stable working weight 90 kg × 8."
+      },
+      "Incline Bench Press (Dumbbell)": {
+        target: "Upper chest (clavicular head)",
+        risk: "Low risk — the default choice for elbow health",
+        keyCues: [
+          "Semi-neutral 45° grip lets the humerus rotate naturally.",
+          "Bench angle 30° to 45° so the chest, not the shoulders, does the work.",
+          "Dumbbells remove the torsion a fixed bar puts through the elbows.",
+          "One-second pause at the bottom without hyperextending the shoulders."
+        ],
+        milansStats: "Current load: 64 kg combined (32+32 kg) for sets of 10."
+      },
+      "Pull Up (Neutral Grip)": {
+        target: "Latissimus dorsi",
+        risk: "Moderate at 116 kg — a neutral grip is mandatory",
+        keyCues: [
+          "Always use parallel handles (neutral grip) to spare the elbow tendons.",
+          "Pull from the lats, not the biceps; drive the elbows down.",
+          "Full range, no kipping and no bounce out of the bottom.",
+          "Two-second eccentric to protect the shoulders."
+        ],
+        milansStats: "Clean 7 reps at a bodyweight of about 116 kg."
+      },
+      "Zottman Curl (Dumbbell)": {
+        target: "Biceps + brachioradialis + elbow tendons",
+        risk: "Therapeutic for elbow stability",
+        keyCues: [
+          "Concentric phase: supinated grip (palms up).",
+          "At the top: rotate 180° into a pronated grip (palms down).",
+          "Eccentric phase: three-second lower in pronation.",
+          "Builds the forearms and quiets false elbow alarms."
+        ],
+        milansStats: "Working load: 20 to 28 kg dumbbells for 3 sets."
+      },
+      "Butterfly (Pec Deck)": {
+        target: "Pectorals (peak contraction)",
+        risk: "1:1 load transmission — do not overshoot the weight",
+        keyCues: [
+          "This pec deck is a direct 1:1 drive with no pulley relief.",
+          "Set the seat so the handles meet the mid-chest.",
+          "Keep a soft bend in the elbows and do not let it change.",
+          "Squeeze the chest at the peak; do not shove with the palms."
+        ],
+        milansStats: "Progressed to 73 kg × 8 in a controlled tempo."
+      },
+      "Concept2 Rowing (Damper 10)": {
+        target: "Cardiovascular system & explosive hip drive",
+        risk: "Watch the low back and the grip as fatigue builds",
+        keyCues: [
+          "Drive order: legs → hips → arms.",
+          "Recovery order: arms → hips → legs.",
+          "Relax the grip. A white-knuckle hold fatigues the elbow.",
+          "At 197 cm a long leg drive produces a lot of watts."
+        ],
+        milansStats: "Best pace: 1:41.0 / 500m, about 340 W on the Concept2 formula. HIIT standard: 4×500 m @ 1:48."
+      }
+    };
 
     /* --------------------------------------------------------------------------
        BILINGUAL TRANSLATIONS DICTIONARY
@@ -1333,7 +1417,34 @@
         hHistDesc: "Pretražite sve zabeležene sesije, serije, kilaže i proprioceptivne napomene.",
         gMainTitle: "Biomehanički Vodiči & Prevencija Povreda Lakta",
         gMainDesc: "Sa visinom od 197 cm i telesnom masom od 116 kg, poluge na zglobovima su znatno duže nego kod prosečnog vežbača. Ovaj vodič definiše pravila hvata, uglova i selekcije sprava za maksimalan stimulans bez oštećenja tetiva.",
-        searchPlaceholder: "Pretraži po vežbi ili naslovu..."
+        searchPlaceholder: "Pretraži po vežbi ili naslovu...",
+        filter30: "30 Dana",
+        filter90: "3 Meseca",
+        filter180: "6 Meseci",
+        filter1y: "1 Godina",
+        filterAll: "Sve Vreme",
+        lblFrom: "OD:",
+        lblTo: "DO:",
+        repsUnit: "ponavljanja",
+        epleyPrefix: "Epley 1RM",
+        wattsSuffix: "W vršna snaga @ D10",
+        noRowPr: "Nema 500 m sprinta u bazi",
+        tonsUnit: "t",
+        damperChip: "DAMPER ZAKUCAN NA 10",
+        thDate: "Datum",
+        thType: "Trening",
+        thDist: "Distanca",
+        thTime: "Vreme",
+        thSplit: "Prosečan Split",
+        thWatts: "Prosek Vata",
+        thNotes: "Napomena / Protokol",
+        modalTitle: "Uvezi Hevy Trening / CSV Podatke",
+        modalDesc: "Nalepite Hevy CSV ili tekst. Sinhronizacija čita Google Sheets kolone: Date, Workout, Exercise, Set, Weight_kg, Reps, Distance_km, Duration_sec, Notes. Prazna tabela ne briše lokalni dnevnik.",
+        modalPaste: "Nalepi Hevy tekst ili CSV:",
+        modalCancel: "Otkaži",
+        modalParse: "Analiziraj i Uvezi",
+        techClose: "U redu, razumem",
+        pastePlaceholder: "Date,Workout,Exercise,Set,Weight_kg,Reps,Distance_km,Duration_sec,Notes"
       },
       en: {
         profileTag: "ATHLETE 197cm / 116kg",
@@ -1388,7 +1499,34 @@
         hHistDesc: "Search all logged workouts, set tables, weights, and proprioceptive notes.",
         gMainTitle: "Biomechanical Technique & Joint Longevity Guides",
         gMainDesc: "At 197 cm height and 116 kg bodyweight, limb lever lengths demand specialized angles. This guide provides strict execution rules to maximize stimulus without tendon irritation.",
-        searchPlaceholder: "Search by exercise or title..."
+        searchPlaceholder: "Search by exercise or title...",
+        filter30: "30 Days",
+        filter90: "3 Months",
+        filter180: "6 Months",
+        filter1y: "1 Year",
+        filterAll: "All Time",
+        lblFrom: "FROM:",
+        lblTo: "TO:",
+        repsUnit: "reps",
+        epleyPrefix: "Epley 1RM",
+        wattsSuffix: "W peak power @ D10",
+        noRowPr: "No 500 m sprint in the log",
+        tonsUnit: "t",
+        damperChip: "DAMPER LOCKED AT 10",
+        thDate: "Date",
+        thType: "Workout",
+        thDist: "Distance",
+        thTime: "Time",
+        thSplit: "Average Split",
+        thWatts: "Average Watts",
+        thNotes: "Note / Protocol",
+        modalTitle: "Import Hevy Workout / CSV",
+        modalDesc: "Paste a Hevy CSV or text export. Sync reads Google Sheets columns: Date, Workout, Exercise, Set, Weight_kg, Reps, Distance_km, Duration_sec, Notes. An empty sheet does not erase the local log.",
+        modalPaste: "Paste Hevy text or CSV:",
+        modalCancel: "Cancel",
+        modalParse: "Parse and Import",
+        techClose: "Got it",
+        pastePlaceholder: "Date,Workout,Exercise,Set,Weight_kg,Reps,Distance_km,Duration_sec,Notes"
       }
     };
 
@@ -1522,17 +1660,43 @@
       const searchInp = document.getElementById('workout-search-input');
       if (searchInp) searchInp.placeholder = t.searchPlaceholder;
 
+      setElemText('filter-30d', t.filter30);
+      setElemText('filter-90d', t.filter90);
+      setElemText('filter-180d', t.filter180);
+      setElemText('filter-1y', t.filter1y);
+      setElemText('filter-all', t.filterAll);
+      setElemText('lbl-date-from', t.lblFrom);
+      setElemText('lbl-date-to', t.lblTo);
+      setElemText('c2-badge-damper', t.damperChip);
+      setElemText('th-c2-date', t.thDate);
+      setElemText('th-c2-type', t.thType);
+      setElemText('th-c2-dist', t.thDist);
+      setElemText('th-c2-dur', t.thTime);
+      setElemText('th-c2-split', t.thSplit);
+      setElemText('th-c2-watts', t.thWatts);
+      setElemText('th-c2-notes', t.thNotes);
+      setElemText('modal-import-title', t.modalTitle);
+      setElemText('modal-import-desc', t.modalDesc);
+      setElemText('lbl-hevy-paste', t.modalPaste);
+      setElemText('btn-modal-cancel', t.modalCancel);
+      setElemText('btn-modal-parse', t.modalParse);
+      setElemText('btn-tech-close', t.techClose);
+      const paste = document.getElementById('hevy-raw-input');
+      if (paste) paste.placeholder = t.pastePlaceholder;
+
       if (window.lucide && typeof window.lucide.createIcons === 'function') {
         window.lucide.createIcons();
       }
 
       // Re-render components with translated labels
+      updateKpis();
       renderProgressionChart();
       renderTonnageChart();
       renderWorkoutTypeChart();
       renderRowingAnalytics();
       renderMuscleAnalytics();
       renderTechniqueGuides();
+      handleWorkoutSearch(searchInp ? searchInp.value : '');
     }
 
     function setElemText(id, text) {
@@ -1561,18 +1725,20 @@
         }
       });
 
-      // Refresh Chart.js layout when tab becomes visible
-      if (tabKey === 'dashboard') {
-        if (progressionChartInst) progressionChartInst.resize();
-        if (tonnageChartInst) tonnageChartInst.resize();
-        if (workoutTypeChartInst) workoutTypeChartInst.resize();
-      } else if (tabKey === 'concept2') {
-        if (rowingPaceChartInst) rowingPaceChartInst.resize();
-        if (rowingPowerChartInst) rowingPowerChartInst.resize();
-      } else if (tabKey === 'muscles') {
-        if (muscleRadarChartInst) muscleRadarChartInst.resize();
-        if (muscleBarChartInst) muscleBarChartInst.resize();
-      }
+      // Charts inside a hidden tab are created at 0×0. Rebuild them once the pane has layout.
+      const refit = () => {
+        if (tabKey === 'dashboard') {
+          renderProgressionChart();
+          renderTonnageChart();
+          renderWorkoutTypeChart();
+        } else if (tabKey === 'concept2') {
+          renderRowingAnalytics();
+        } else if (tabKey === 'muscles') {
+          renderMuscleAnalytics();
+        }
+      };
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(refit);
+      else refit();
 
       if (window.lucide && typeof window.lucide.createIcons === 'function') {
         window.lucide.createIcons();
@@ -1605,8 +1771,8 @@
       const df = document.getElementById('date-from');
       const dt = document.getElementById('date-to');
       if (df && dt && df.value && dt.value) {
-        customDateStart = new Date(df.value);
-        customDateEnd = new Date(dt.value);
+        customDateStart = df.value;
+        customDateEnd = dt.value;
         currentFilter = 'custom';
         ['30d', '90d', '180d', '1y', 'all'].forEach(f => {
           const btn = document.getElementById(`filter-${f}`);
@@ -1622,48 +1788,118 @@
       setDateFilter('all');
     }
 
+    function todayISO() {
+      const n = new Date();
+      const m = String(n.getMonth() + 1).padStart(2, '0');
+      const d = String(n.getDate()).padStart(2, '0');
+      return `${n.getFullYear()}-${m}-${d}`;
+    }
+
+    function addDaysISO(iso, days) {
+      const parts = iso.split('-').map(Number);
+      const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+      dt.setUTCDate(dt.getUTCDate() + days);
+      return dt.toISOString().slice(0, 10);
+    }
+
     function getFilteredWorkouts() {
-      if (currentFilter === 'all') {
-        return [...allWorkouts].sort((a, b) => new Date(a.date) - new Date(b.date));
-      }
+      const sorted = [...allWorkouts].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      if (currentFilter === 'all') return sorted;
 
-      const now = new Date("2026-11-05T00:00:00"); // Based on provided environment context
-      let cutoff = new Date(now);
-
-      if (currentFilter === '30d') cutoff.setDate(now.getDate() - 30);
-      else if (currentFilter === '90d') cutoff.setDate(now.getDate() - 90);
-      else if (currentFilter === '180d') cutoff.setDate(now.getDate() - 180);
-      else if (currentFilter === '1y') cutoff.setFullYear(now.getFullYear() - 1);
+      let start = null;
+      let end = todayISO();
+      if (currentFilter === '30d') start = addDaysISO(end, -30);
+      else if (currentFilter === '90d') start = addDaysISO(end, -90);
+      else if (currentFilter === '180d') start = addDaysISO(end, -180);
+      else if (currentFilter === '1y') start = addDaysISO(end, -365);
       else if (currentFilter === 'custom' && customDateStart && customDateEnd) {
-        return allWorkouts.filter(w => {
-          const d = new Date(w.date);
-          return d >= customDateStart && d <= customDateEnd;
-        }).sort((a, b) => new Date(a.date) - new Date(b.date));
+        start = customDateStart;
+        end = customDateEnd;
+        if (start > end) {
+          const swap = start;
+          start = end;
+          end = swap;
+        }
       }
-
-      return allWorkouts.filter(w => new Date(w.date) >= cutoff).sort((a, b) => new Date(a.date) - new Date(b.date));
+      if (!start) return sorted;
+      return sorted.filter(w => w.date >= start && w.date <= end);
     }
 
     /* --------------------------------------------------------------------------
        KPIS & PROGRESSION CHARTS
        -------------------------------------------------------------------------- */
     function updateKpis() {
+      const t = I18N[currentLanguage] || I18N.sr;
       const sessEl = document.getElementById('kpi-sessions');
       if (sessEl) sessEl.textContent = allWorkouts.length;
 
-      // Find max Bench Press weight
+      const dates = allWorkouts.map(w => w.date).filter(Boolean).sort();
+      if (dates.length) {
+        const from = dates[0].slice(0, 4);
+        const to = dates[dates.length - 1].slice(0, 4);
+        const range = from === to ? from : `${from}–${to}`;
+        setElemText('lbl-sessions-sub', currentLanguage === 'sr' ? `U bazi (${range})` : `In database (${range})`);
+      }
+
       let maxBench = 0;
+      let bestEpley = 0;
+      let bestSplit = null;
+      let maxNeutral = 0;
+      let maxPull = 0;
+
       allWorkouts.forEach(w => {
         w.exercises.forEach(ex => {
           if (ex.name === "Bench Press (Barbell)") {
             ex.sets.forEach(s => {
-              if (s.weight && s.weight > maxBench) maxBench = s.weight;
+              const wt = s.weight || 0;
+              const reps = s.reps || 0;
+              if (wt > maxBench) maxBench = wt;
+              if (wt > 0 && reps > 0) {
+                const epley = wt * (1 + reps / 30);
+                if (epley > bestEpley) bestEpley = epley;
+              }
+            });
+          }
+          if (/^pull up/i.test(ex.name || '')) {
+            const neutral = /neutral/i.test(ex.name || '') || /neutral/i.test(ex.notes || '');
+            ex.sets.forEach(s => {
+              const reps = s.reps || 0;
+              if (reps > maxPull) maxPull = reps;
+              if (neutral && reps > maxNeutral) maxNeutral = reps;
+            });
+          }
+          if (isRowingName(ex.name)) {
+            ex.sets.forEach(s => {
+              if (isSprint500(s) && (bestSplit === null || s.seconds < bestSplit)) bestSplit = s.seconds;
             });
           }
         });
       });
+
       const benchEl = document.getElementById('kpi-bench');
-      if (benchEl) benchEl.innerHTML = `${maxBench || 100} <span style="font-size: 1rem; color: var(--on-surface-variant);">kg</span>`;
+      if (benchEl) {
+        benchEl.innerHTML = `${maxBench || 0} <span style="font-size: 1rem; color: var(--on-surface-variant);">kg</span>`;
+      }
+      const epleyEl = document.getElementById('kpi-bench-epley');
+      if (epleyEl) {
+        epleyEl.textContent = bestEpley > 0 ? `${t.epleyPrefix}: ${Math.round(bestEpley)} kg` : `${t.epleyPrefix}: —`;
+      }
+
+      const rowEl = document.getElementById('kpi-row-pr');
+      const rowSub = document.getElementById('kpi-row-sub');
+      if (bestSplit) {
+        if (rowEl) rowEl.innerHTML = `${formatPace(bestSplit)} <span style="font-size: 1rem; color: var(--on-surface-variant);">/500m</span>`;
+        if (rowSub) rowSub.textContent = `${Math.round(paceToWatts(bestSplit))} ${t.wattsSuffix}`;
+      } else {
+        if (rowEl) rowEl.textContent = '—';
+        if (rowSub) rowSub.textContent = t.noRowPr;
+      }
+
+      const pullEl = document.getElementById('kpi-pullups');
+      const pullReps = maxNeutral || maxPull;
+      if (pullEl) {
+        pullEl.innerHTML = `${pullReps || 0} <span style="font-size: 1rem; color: var(--on-surface-variant);">${t.repsUnit}</span>`;
+      }
     }
 
     function renderProgressionChart() {
@@ -1870,36 +2106,82 @@
       });
     }
 
+    function workoutCategory(title) {
+      const t = (title || '').toLowerCase();
+      if (t.includes('hiit')) return 'HIIT & strength';
+      if (t.includes('upper')) return 'Upper';
+      if (t.includes('full body b')) return 'Full body B';
+      if (t.includes('full body')) return 'Full body A';
+      if (t.includes('weekend')) return 'Weekend';
+      if (t.includes('cardio') || t.includes('explos')) return 'Cardio';
+      const base = String(title || '').split(' - ')[0].trim();
+      return base || 'Other';
+    }
+
     function renderWorkoutTypeChart() {
       const canvas = document.getElementById('workoutTypeChart');
       if (!canvas) return;
 
-      const types = {};
-      allWorkouts.forEach(w => {
-        const t = w.title.split(' - ')[0].trim();
-        types[t] = (types[t] || 0) + 1;
+      const filtered = getFilteredWorkouts();
+      const months = [];
+      const monthIndex = {};
+      const categories = ['Full body A', 'Full body B', 'HIIT & strength', 'Upper', 'Weekend', 'Cardio', 'Other'];
+      const counts = {};
+      categories.forEach(c => { counts[c] = []; });
+
+      filtered.forEach(w => {
+        const month = String(w.date || '').slice(0, 7);
+        if (!/^\d{4}-\d{2}$/.test(month)) return;
+        if (monthIndex[month] === undefined) {
+          monthIndex[month] = months.length;
+          months.push(month);
+          Object.keys(counts).forEach(c => counts[c].push(0));
+        }
+        const cat = workoutCategory(w.title);
+        if (!counts[cat]) {
+          counts[cat] = months.map(() => 0);
+          categories.push(cat);
+        }
+        counts[cat][monthIndex[month]] += 1;
       });
+
+      const palette = ['#63c7d6', '#87d69b', '#e8b954', '#f08c70', '#5d7882', '#94a8b0', '#c7f0f7'];
+      const datasets = categories
+        .filter(c => (counts[c] || []).some(n => n > 0))
+        .map((c, i) => ({
+          label: c,
+          data: counts[c],
+          backgroundColor: palette[i % palette.length],
+          borderWidth: 0,
+          borderRadius: 2,
+          stack: 'sessions'
+        }));
 
       if (workoutTypeChartInst) workoutTypeChartInst.destroy();
 
       workoutTypeChartInst = new Chart(canvas, {
-        type: 'doughnut',
-        data: {
-          labels: Object.keys(types),
-          datasets: [{
-            data: Object.values(types),
-            backgroundColor: ['#63c7d6', '#87d69b', '#e8b954', '#f08c70', '#5d7882', '#94a8b0'],
-            borderColor: '#111a1e',
-            borderWidth: 2
-          }]
-        },
+        type: 'bar',
+        data: { labels: months, datasets: datasets },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          scales: {
+            x: {
+              stacked: true,
+              grid: { color: '#213138' },
+              ticks: { color: '#94a8b0', font: { family: 'Geist Mono', size: 10 } }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              ticks: { color: '#edf3f5', font: { family: 'Geist Mono' }, precision: 0 },
+              grid: { color: '#213138' }
+            }
+          },
           plugins: {
             legend: {
-              position: 'right',
-              labels: { color: '#edf3f5', font: { family: 'Plus Jakarta Sans', size: 11 } }
+              position: 'bottom',
+              labels: { color: '#edf3f5', font: { family: 'Plus Jakarta Sans', size: 11 }, boxWidth: 12 }
             }
           }
         }
@@ -1909,66 +2191,113 @@
     /* --------------------------------------------------------------------------
        CONCEPT2 ROWING ANALYTICS & CALCULATOR
        -------------------------------------------------------------------------- */
+    function isRowingName(name) {
+      return /rowing|rowerg|concept\s*2|vesla/i.test(name || '');
+    }
+
+    function isSprint500(set) {
+      const km = Number(set.km);
+      return km >= 0.45 && km <= 0.55 && Number(set.seconds) > 0;
+    }
+
+    function paceToWatts(seconds) {
+      if (!seconds || seconds <= 0) return 0;
+      return 2.80 / Math.pow(seconds / 500, 3);
+    }
+
+    function paceToKcalPerHour(seconds) {
+      const watts = paceToWatts(seconds);
+      if (!watts) return 0;
+      return (watts * 4 * 0.8604) + 300;
+    }
+
+    function formatPace(seconds) {
+      if (!seconds || isNaN(seconds) || seconds <= 0) return "0:00.0";
+      const totalTenths = Math.round(Number(seconds) * 10);
+      const minutes = Math.floor(totalTenths / 600);
+      const rem = totalTenths % 600;
+      const secs = Math.floor(rem / 10);
+      const tenths = rem % 10;
+      return `${minutes}:${String(secs).padStart(2, '0')}.${tenths}`;
+    }
+
+    function formatDuration(seconds) {
+      if (!seconds || isNaN(seconds) || seconds <= 0) return "—";
+      const total = Math.round(Number(seconds));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[ch]));
+    }
+
+    function collectRowingSessions() {
+      const sessions = [];
+      allWorkouts.forEach(w => {
+        const rows = (w.exercises || []).filter(e => isRowingName(e.name));
+        if (!rows.length) return;
+        let meters = 0;
+        let seconds = 0;
+        let best = null;
+        const notes = [];
+        rows.forEach(ex => {
+          if (ex.notes) notes.push(ex.notes);
+          (ex.sets || []).forEach(s => {
+            if (s.km) meters += Number(s.km) * 1000;
+            if (s.seconds) seconds += Number(s.seconds);
+            if (isSprint500(s) && (best === null || s.seconds < best)) best = Number(s.seconds);
+          });
+        });
+        if (meters <= 0 && seconds <= 0) return;
+        const avgSplit = meters > 0 && seconds > 0 ? (seconds / meters) * 500 : 0;
+        sessions.push({
+          date: w.date,
+          title: w.title,
+          distanceKm: meters / 1000,
+          totalSec: seconds,
+          avgSplit: avgSplit,
+          bestSprint: best,
+          notes: notes.join(' · ')
+        });
+      });
+      return sessions;
+    }
+
     function renderRowingAnalytics() {
       const paceCanvas = document.getElementById('rowingPaceChart');
       const powerCanvas = document.getElementById('rowingPowerChart');
       const tableBody = document.getElementById('c2-table-body');
+      const isSr = currentLanguage === 'sr';
 
-      const rowingSessions = [];
-      let totalMeters = 0;
+      const rowingSessions = collectRowingSessions();
+      const totalMeters = rowingSessions.reduce((sum, s) => sum + s.distanceKm * 1000, 0);
 
-      allWorkouts.forEach(w => {
-        const rowEx = w.exercises.find(e => e.name === "Rowing Machine");
-        if (rowEx) {
-          let sessionDist = 0;
-          let best500mSec = 999;
-          let warmUpSplitSec = 0;
-
-          rowEx.sets.forEach(s => {
-            if (s.km) {
-              const meters = s.km * 1000;
-              sessionDist += meters;
-              totalMeters += meters;
-              if (s.seconds && s.km === 0.5) {
-                if (s.seconds < best500mSec) best500mSec = s.seconds;
-              } else if (s.seconds && s.km >= 1.0) {
-                warmUpSplitSec = (s.seconds / s.km) * 0.5;
-              }
-            }
-          });
-
-          if (best500mSec === 999 && warmUpSplitSec > 0) {
-            best500mSec = warmUpSplitSec;
-          }
-
-          if (best500mSec < 999) {
-            // Calculate Watts: 2.80 / (pace_in_seconds / 500)^3
-            const watts = 2.80 / Math.pow(best500mSec / 500, 3);
-            rowingSessions.push({
-              date: w.date,
-              title: w.title,
-              distanceKm: (sessionDist / 1000).toFixed(2),
-              bestSec: best500mSec,
-              splitStr: formatPace(best500mSec),
-              watts: Math.round(watts),
-              notes: rowEx.notes || (best500mSec <= 108 ? "Damper 10 HIIT 4x500m" : "Warmup / Base")
-            });
-          }
-        }
-      });
-
-      // Update Total Dist KPI
       const distEl = document.getElementById('c2-total-dist');
       if (distEl) distEl.innerHTML = `${(totalMeters / 1000).toFixed(1)} <span style="font-size: 1rem;">km</span>`;
+      const sessLbl = document.getElementById('lbl-c2-sessions');
+      if (sessLbl) {
+        const n = rowingSessions.length;
+        sessLbl.textContent = isSr
+          ? `U ${n} ${n === 1 ? 'sesiji' : 'sesija'}`
+          : `Across ${n} session${n === 1 ? '' : 's'}`;
+      }
 
-      // Sort chronological for charts
-      rowingSessions.sort((a, b) => new Date(a.date) - new Date(b.date));
+      const sprintSessions = rowingSessions
+        .filter(s => s.bestSprint)
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      const labels = sprintSessions.map(s => s.date);
+      const paceValues = sprintSessions.map(s => s.bestSprint);
+      const wattsValues = sprintSessions.map(s => Math.round(paceToWatts(s.bestSprint)));
+      const kcalValues = sprintSessions.map(s => Math.round(paceToKcalPerHour(s.bestSprint)));
+      const paceMin = paceValues.length ? Math.max(70, Math.min(...paceValues) - 4) : 80;
+      const paceMax = paceValues.length ? Math.max(...paceValues) + 4 : 140;
 
-      const labels = rowingSessions.map(s => s.date);
-      const paceValues = rowingSessions.map(s => s.bestSec);
-      const wattsValues = rowingSessions.map(s => s.watts);
-
-      // Render Pace Line Chart
       if (paceCanvas) {
         if (rowingPaceChartInst) rowingPaceChartInst.destroy();
         rowingPaceChartInst = new Chart(paceCanvas, {
@@ -1976,7 +2305,7 @@
           data: {
             labels: labels,
             datasets: [{
-              label: currentLanguage === 'sr' ? 'Vreme na 500m (sekunde)' : '500m Split (seconds)',
+              label: isSr ? 'Najbolji 500m (sekunde)' : 'Best 500m (seconds)',
               data: paceValues,
               borderColor: '#63c7d6',
               backgroundColor: 'rgba(99, 199, 214, 0.1)',
@@ -1993,6 +2322,8 @@
             scales: {
               x: { grid: { color: '#213138' }, ticks: { color: '#94a8b0', font: { family: 'Geist Mono', size: 10 } } },
               y: {
+                min: paceMin,
+                max: paceMax,
                 grid: { color: '#213138' },
                 ticks: {
                   color: '#edf3f5',
@@ -2006,7 +2337,10 @@
               tooltip: {
                 backgroundColor: '#152024',
                 callbacks: {
-                  label: function(ctx) { return `Split: ${formatPace(ctx.raw)} (${ctx.raw}s)`; }
+                  label: function(ctx) {
+                    const watts = Math.round(paceToWatts(ctx.raw));
+                    return `Split: ${formatPace(ctx.raw)} · ${watts} W`;
+                  }
                 }
               }
             }
@@ -2014,59 +2348,83 @@
         });
       }
 
-      // Render Watts Bar Chart
       if (powerCanvas) {
         if (rowingPowerChartInst) rowingPowerChartInst.destroy();
         rowingPowerChartInst = new Chart(powerCanvas, {
           type: 'bar',
           data: {
             labels: labels,
-            datasets: [{
-              label: 'Watts',
-              data: wattsValues,
-              backgroundColor: 'rgba(135, 214, 155, 0.6)',
-              borderColor: '#87d69b',
-              borderWidth: 1,
-              borderRadius: 3
-            }]
+            datasets: [
+              {
+                type: 'bar',
+                label: 'Watts',
+                data: wattsValues,
+                yAxisID: 'y',
+                backgroundColor: 'rgba(135, 214, 155, 0.6)',
+                borderColor: '#87d69b',
+                borderWidth: 1,
+                borderRadius: 3
+              },
+              {
+                type: 'line',
+                label: 'kcal/h',
+                data: kcalValues,
+                yAxisID: 'y1',
+                borderColor: '#e8b954',
+                backgroundColor: '#e8b954',
+                pointRadius: 3,
+                tension: 0.2
+              }
+            ]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
               x: { grid: { color: '#213138' }, ticks: { color: '#94a8b0', font: { family: 'Geist Mono', size: 10 } } },
-              y: { grid: { color: '#213138' }, ticks: { color: '#edf3f5', font: { family: 'Geist Mono' } } }
+              y: {
+                position: 'left',
+                beginAtZero: true,
+                title: { display: true, text: 'Watts', color: '#87d69b' },
+                grid: { color: '#213138' },
+                ticks: { color: '#edf3f5', font: { family: 'Geist Mono' } }
+              },
+              y1: {
+                position: 'right',
+                beginAtZero: true,
+                title: { display: true, text: 'kcal/h', color: '#e8b954' },
+                grid: { drawOnChartArea: false },
+                ticks: { color: '#e8b954', font: { family: 'Geist Mono' } }
+              }
             },
             plugins: {
-              legend: { display: false },
+              legend: {
+                labels: { color: '#edf3f5', font: { family: 'Plus Jakarta Sans', size: 11 } }
+              },
               tooltip: { backgroundColor: '#152024' }
             }
           }
         });
       }
 
-      // Populate Table (Most recent first)
       if (tableBody) {
-        const recents = [...rowingSessions].reverse();
-        tableBody.innerHTML = recents.map(r => `
-          <tr>
-            <td class="tabular-val">${r.date}</td>
-            <td><strong>${r.title}</strong></td>
-            <td class="tabular-val">${r.distanceKm} km</td>
-            <td class="tabular-val">${r.bestSec} s</td>
-            <td class="tabular-val" style="color: var(--primary); font-weight:600;">${r.splitStr}</td>
-            <td class="tabular-val" style="color: var(--tertiary);">${r.watts} W</td>
-            <td style="color: var(--on-surface-variant);">${r.notes}</td>
-          </tr>
-        `).join('');
+        const recents = [...rowingSessions].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        if (!recents.length) {
+          tableBody.innerHTML = `<tr><td colspan="7" style="color: var(--on-surface-variant);">${isSr ? 'Nema zabeleženih sesija na veslaču.' : 'No rowing sessions logged.'}</td></tr>`;
+        } else {
+          tableBody.innerHTML = recents.map(r => `
+            <tr>
+              <td class="tabular-val">${escapeHtml(r.date)}</td>
+              <td><strong>${escapeHtml(r.title)}</strong></td>
+              <td class="tabular-val">${r.distanceKm.toFixed(2)} km</td>
+              <td class="tabular-val">${formatDuration(r.totalSec)}</td>
+              <td class="tabular-val" style="color: var(--primary); font-weight:600;">${r.avgSplit ? formatPace(r.avgSplit) : '—'}</td>
+              <td class="tabular-val" style="color: var(--tertiary);">${r.avgSplit ? Math.round(paceToWatts(r.avgSplit)) + ' W' : '—'}</td>
+              <td style="color: var(--on-surface-variant);">${escapeHtml(r.notes || (r.bestSprint ? (isSr ? 'Ima 500 m sprint' : 'Includes a 500 m sprint') : (isSr ? 'Zagrevanje / baza' : 'Warm-up / base')))}</td>
+            </tr>
+          `).join('');
+        }
       }
-    }
-
-    function formatPace(seconds) {
-      if (!seconds || isNaN(seconds)) return "0:00.0";
-      const m = Math.floor(seconds / 60);
-      const s = (seconds % 60).toFixed(1);
-      return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
     function calculateRowingMetrics() {
@@ -2078,36 +2436,50 @@
       const wattsDisplay = document.getElementById('c2-watts-display');
       const projDisplay = document.getElementById('c2-proj-display');
 
-      const splitStr = formatPace(val);
-      // Concept2 formula: Watts = 2.80 / (pace_seconds / 500)^3
-      const watts = 2.80 / Math.pow(val / 500, 3);
-      // 2000m projection: 4 * val
-      const proj2kSec = val * 4;
-      const projStr = formatPace(proj2kSec);
+      const watts = paceToWatts(val);
+      const kcal = paceToKcalPerHour(val);
+      const projStr = formatPace(val * 4);
 
-      if (splitDisplay) splitDisplay.textContent = `${splitStr} / 500m`;
-      if (wattsDisplay) wattsDisplay.textContent = `${Math.round(watts)} Watts`;
+      if (splitDisplay) splitDisplay.textContent = `${formatPace(val)} / 500m`;
+      if (wattsDisplay) {
+        wattsDisplay.innerHTML = `${Math.round(watts)} W<span style="display:block;font-size:0.75rem;font-weight:600;color:var(--on-surface-variant);">${Math.round(kcal)} kcal/h</span>`;
+      }
       if (projDisplay) projDisplay.textContent = projStr;
     }
 
     /* --------------------------------------------------------------------------
        MUSCLE GROUP BREAKDOWN
        -------------------------------------------------------------------------- */
+    function muscleGroup(name) {
+      if (MUSCLE_MAP[name]) return MUSCLE_MAP[name];
+      const n = (name || '').toLowerCase();
+      if (/rowing|rowerg|concept\s*2|treadmill|running|spinning|elliptical|burpee|slam|kettlebell swing|battle rope|bike/.test(n)) return 'Cardio';
+      if (/pull up|chin up|pulldown|pullover|\brow\b|face pull|dead hang|back extension/.test(n)) return 'Back';
+      if (/bench|fly|push-?up|\bpec\b|chest|\bdip\b/.test(n)) return 'Chest';
+      if (/shoulder|lateral raise|shrug|arnold|overhead press|clean and press|rear delt/.test(n)) return 'Shoulders';
+      if (/curl|tricep|bicep|pushdown/.test(n)) return 'Arms';
+      if (/squat|lunge|deadlift|leg press|\bcalf\b|hip thrust/.test(n)) return 'Legs';
+      if (/crunch|plank|knee raise|leg raise|\bcore\b|farmers walk/.test(n)) return 'Core';
+      return 'Other';
+    }
+
     function renderMuscleAnalytics() {
-      const muscleSets = { 'Chest': 0, 'Back': 0, 'Shoulders': 0, 'Arms': 0, 'Legs': 0, 'Cardio': 0, 'Core': 0 };
-      const muscleTonnage = { 'Chest': 0, 'Back': 0, 'Shoulders': 0, 'Arms': 0, 'Legs': 0, 'Cardio': 0, 'Core': 0 };
+      const muscleSets = { 'Chest': 0, 'Back': 0, 'Shoulders': 0, 'Arms': 0, 'Legs': 0, 'Core': 0 };
+      const muscleTonnage = { 'Chest': 0, 'Back': 0, 'Shoulders': 0, 'Arms': 0, 'Legs': 0, 'Core': 0 };
 
       allWorkouts.forEach(w => {
         w.exercises.forEach(ex => {
-          const group = MUSCLE_MAP[ex.name] || 'Other';
-          if (muscleSets[group] !== undefined) {
-            muscleSets[group] += ex.sets.length;
-            ex.sets.forEach(s => {
-              if (s.weight && s.reps) {
-                muscleTonnage[group] += (s.weight * s.reps);
-              }
-            });
+          const group = muscleGroup(ex.name);
+          if (muscleSets[group] === undefined) {
+            muscleSets[group] = 0;
+            muscleTonnage[group] = 0;
           }
+          muscleSets[group] += (ex.sets || []).length;
+          ex.sets.forEach(s => {
+            if (s.weight && s.reps) {
+              muscleTonnage[group] += (s.weight * s.reps);
+            }
+          });
         });
       });
 
@@ -2115,16 +2487,18 @@
       const barCanvas = document.getElementById('muscleBarChart');
       const cardsGrid = document.getElementById('muscle-cards-grid');
 
-      const labels = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'];
-      const setData = labels.map(l => muscleSets[l]);
-      const tonData = labels.map(l => Math.round(muscleTonnage[l]));
+      const strengthLabels = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'];
+      const extraLabels = Object.keys(muscleSets).filter(l => !strengthLabels.includes(l) && muscleSets[l] > 0);
+      const labels = strengthLabels.concat(extraLabels);
+      const setData = strengthLabels.map(l => muscleSets[l] || 0);
+      const tonData = labels.map(l => Math.round(muscleTonnage[l] || 0));
 
       if (radarCanvas) {
         if (muscleRadarChartInst) muscleRadarChartInst.destroy();
         muscleRadarChartInst = new Chart(radarCanvas, {
           type: 'radar',
           data: {
-            labels: labels,
+            labels: strengthLabels,
             datasets: [{
               label: currentLanguage === 'sr' ? 'Ukupno Radnih Serija' : 'Total Sets',
               data: setData,
@@ -2159,7 +2533,7 @@
             datasets: [{
               label: currentLanguage === 'sr' ? 'Tonaža (kg)' : 'Tonnage (kg)',
               data: tonData,
-              backgroundColor: ['#63c7d6', '#87d69b', '#e8b954', '#f08c70', '#5d7882', '#94a8b0'],
+              backgroundColor: ['#63c7d6', '#87d69b', '#e8b954', '#f08c70', '#5d7882', '#94a8b0', '#c7f0f7', '#f27474'],
               borderRadius: 4
             }]
           },
@@ -2188,7 +2562,7 @@
               </div>
               <div class="metric-delta">
                 <i data-lucide="dumbbell" style="width:13px;height:13px;"></i>
-                <span>${(ton / 1000).toFixed(1)} tona</span>
+                <span>${ton >= 1000 ? (ton / 1000).toFixed(1) + ' ' + ((I18N[currentLanguage] || I18N.sr).tonsUnit) : Math.round(ton) + ' kg'}</span>
               </div>
             </div>
           `;
@@ -2233,10 +2607,10 @@
             <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-xs);">
               <div>
                 <div style="display: flex; align-items: center; gap: var(--space-xs);">
-                  <span class="status-chip-cyan status-chip tabular-val">${w.date}</span>
-                  <span class="status-chip tabular-val">${w.durationMinutes || 60} min</span>
+                  <span class="status-chip-cyan status-chip tabular-val">${escapeHtml(w.date)}</span>
+                  <span class="status-chip tabular-val">${w.durationMinutes ? escapeHtml(w.durationMinutes) + ' min' : '—'}</span>
                 </div>
-                <h3 style="margin-top: 4px; font-size: 1.15rem;">${w.title}</h3>
+                <h3 style="margin-top: 4px; font-size: 1.15rem;">${escapeHtml(w.title)}</h3>
               </div>
               <div style="text-align: right;">
                 <span class="data-label">${isSr ? 'OBIM SESIJE' : 'SESSION VOLUME'}</span>
@@ -2250,7 +2624,7 @@
             <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: var(--space-sm); margin-bottom: var(--space-sm);">
               ${w.exercises.map(ex => `
                 <span class="btn-chip" style="font-size: 0.72rem; cursor: default;">
-                  ${ex.name}: <strong>${ex.sets.length}s</strong>
+                  ${escapeHtml(ex.name)}: <strong>${ex.sets.length}s</strong>
                 </span>
               `).join('')}
             </div>
@@ -2264,22 +2638,11 @@
                 ${w.exercises.map(ex => `
                   <div class="well" style="padding: var(--space-xs) var(--space-sm); font-size: 0.8125rem;">
                     <div style="display: flex; justify-content: space-between; font-weight: 600; color: var(--on-surface);">
-                      <span>${ex.name}</span>
-                      ${ex.notes ? `<span class="status-chip-warn status-chip" style="font-size: 0.65rem;">${ex.notes}</span>` : ''}
+                      <span>${escapeHtml(ex.name)}</span>
+                      ${ex.notes ? `<span class="status-chip-warn status-chip" style="font-size: 0.65rem;">${escapeHtml(ex.notes)}</span>` : ''}
                     </div>
                     <div style="color: var(--on-surface-variant); font-family: var(--font-label); margin-top: 2px;">
-                      ${ex.sets.map((s, idx) => {
-                        if (s.weight !== undefined && s.reps !== undefined) {
-                          return `[#${idx+1}: ${s.weight}kg × ${s.reps}]`;
-                        } else if (s.km !== undefined && s.seconds !== undefined) {
-                          return `[#${idx+1}: ${s.km}km in ${s.seconds}s (${formatPace((s.seconds/s.km)*0.5)})]`;
-                        } else if (s.reps !== undefined) {
-                          return `[#${idx+1}: ${s.reps} reps]`;
-                        } else if (s.seconds !== undefined) {
-                          return `[#${idx+1}: ${s.seconds}s hang]`;
-                        }
-                        return `[#${idx+1}]`;
-                      }).join(' ')}
+                      ${ex.sets.map((s, idx) => formatSetLabel(s, idx)).join(' ')}
                     </div>
                   </div>
                 `).join('')}
@@ -2292,6 +2655,16 @@
       if (window.lucide && typeof window.lucide.createIcons === 'function') {
         window.lucide.createIcons();
       }
+    }
+
+    function formatSetLabel(s, idx) {
+      const parts = [];
+      if (s.weight) parts.push(`${s.weight}kg`);
+      if (s.reps) parts.push(`× ${s.reps}`);
+      if (s.km) parts.push(`${s.km}km`);
+      if (s.seconds) parts.push(`${s.seconds}s`);
+      if (s.km && s.seconds) parts.push(formatPace((s.seconds / s.km) * 0.5));
+      return `[#${idx + 1}: ${parts.length ? parts.join(' ') : '—'}]`;
     }
 
     function handleWorkoutSearch(query) {
@@ -2311,26 +2684,33 @@
     /* --------------------------------------------------------------------------
        TECHNIQUE GUIDES POPUPS & CARDS
        -------------------------------------------------------------------------- */
+    function guideText(g) {
+      if (currentLanguage === 'en' && GUIDE_EN[g.exercise]) return GUIDE_EN[g.exercise];
+      return { target: g.target, risk: g.risk, keyCues: g.keyCues, milansStats: g.milansStats };
+    }
+
     function renderTechniqueGuides() {
       const container = document.getElementById('guides-grid');
       if (!container) return;
 
       const isSr = currentLanguage === 'sr';
 
-      container.innerHTML = TECHNIQUE_GUIDES.map(g => `
+      container.innerHTML = TECHNIQUE_GUIDES.map(g => {
+        const copy = guideText(g);
+        return `
         <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-md);">
           <div>
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <span class="status-chip-cyan status-chip">${g.target}</span>
+              <span class="status-chip-cyan status-chip">${escapeHtml(copy.target)}</span>
               <i data-lucide="shield" style="width: 16px; height: 16px; color: var(--tertiary);"></i>
             </div>
-            <h3 style="font-size: 1.2rem; margin-top: 4px;">${g.exercise}</h3>
+            <h3 style="font-size: 1.2rem; margin-top: 4px;">${escapeHtml(g.exercise)}</h3>
             <p style="color: var(--warning); font-size: 0.8125rem; margin-top: 2px;">
-              ⚠️ ${g.risk}
+              ⚠️ ${escapeHtml(copy.risk)}
             </p>
 
             <ul style="padding-left: var(--space-md); margin-top: var(--space-sm); font-size: 0.875rem; color: var(--on-surface-variant); display: flex; flex-direction: column; gap: 4px;">
-              ${g.keyCues.slice(0, 2).map(cue => `<li>${cue}</li>`).join('')}
+              ${copy.keyCues.slice(0, 2).map(cue => `<li>${escapeHtml(cue)}</li>`).join('')}
             </ul>
           </div>
 
@@ -2341,7 +2721,8 @@
             </button>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
 
       if (window.lucide && typeof window.lucide.createIcons === 'function') {
         window.lucide.createIcons();
@@ -2358,27 +2739,28 @@
       const content = document.getElementById('modal-tech-content');
 
       const isSr = currentLanguage === 'sr';
+      const copy = guideText(guide);
 
       if (title) title.textContent = guide.exercise;
-      if (badge) badge.textContent = guide.target;
+      if (badge) badge.textContent = copy.target;
 
       if (content) {
         content.innerHTML = `
           <div class="well" style="border-left: 3px solid var(--warning);">
             <strong style="color: var(--warning);">${isSr ? 'Bezbednost & Rizik:' : 'Safety & Joint Risk:'}</strong>
-            <p style="margin: 4px 0 0 0; color: var(--on-surface); font-size: 0.875rem;">${guide.risk}</p>
+            <p style="margin: 4px 0 0 0; color: var(--on-surface); font-size: 0.875rem;">${escapeHtml(copy.risk)}</p>
           </div>
 
           <div>
             <h4 style="margin-bottom: var(--space-xs); color: var(--primary);">${isSr ? 'Ključna pravila forme za 197cm visinu:' : 'Key Biomechanical Rules for 197cm:'}</h4>
             <ul style="padding-left: var(--space-md); margin: 0; display: flex; flex-direction: column; gap: 6px;">
-              ${guide.keyCues.map(c => `<li>${c}</li>`).join('')}
+              ${copy.keyCues.map(c => `<li>${escapeHtml(c)}</li>`).join('')}
             </ul>
           </div>
 
           <div class="well" style="border-left: 3px solid var(--tertiary);">
             <strong style="color: var(--tertiary);">${isSr ? 'Podaci iz Milanovog Dnevnika:' : 'Data from Milan’s Personal Logs:'}</strong>
-            <p style="margin: 4px 0 0 0; color: var(--on-surface); font-size: 0.875rem;">${guide.milansStats}</p>
+            <p style="margin: 4px 0 0 0; color: var(--on-surface); font-size: 0.875rem;">${escapeHtml(copy.milansStats)}</p>
           </div>
         `;
       }
@@ -2465,97 +2847,228 @@
         console.error("Hevy parsing error:", err);
         status.style.display = 'block';
         status.style.color = 'var(--error)';
-        status.textContent = "Greška pri raščlanjivanju: " + err.message;
+        status.textContent = (currentLanguage === 'sr' ? "Greška pri raščlanjivanju: " : "Parse error: ") + err.message;
       }
     }
 
-    function parseHevyRaw(rawText) {
-      const workoutsMap = {};
-      const lines = rawText.split('\n');
+    function parseNum(value) {
+      if (value === undefined || value === null) return 0;
+      const cleaned = String(value).trim().replace(/\s/g, '').replace(',', '.');
+      if (!cleaned) return 0;
+      const n = parseFloat(cleaned);
+      return isNaN(n) ? 0 : n;
+    }
 
-      // Check if CSV format (has header or quotes)
-      const isCsv = lines[0].includes('title') || lines[0].includes('exercise_title') || lines[0].includes(',');
+    function parseDuration(raw) {
+      if (raw === undefined || raw === null || String(raw).trim() === '') return 0;
+      const s = String(raw).trim();
+      const hms = s.match(/^(\d+):(\d{2}):(\d{2})$/);
+      if (hms) return Number(hms[1]) * 3600 + Number(hms[2]) * 60 + Number(hms[3]);
+      const clock = s.match(/^(\d+):(\d{1,2})(?:\.(\d+))?$/);
+      if (clock) {
+        const frac = clock[3] ? Number('0.' + clock[3]) : 0;
+        return Number(clock[1]) * 60 + Number(clock[2]) + frac;
+      }
+      return parseNum(s);
+    }
 
-      if (isCsv) {
-        // Simple CSV splitter handling quoted cells
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line || line.startsWith('title,') || line.startsWith('"title"')) continue;
-
-          // Split CSV considering quotes
-          const cols = parseCsvLine(line);
-          if (cols.length < 5) continue;
-
-          const title = cols[0] || 'Workout';
-          const startTimeRaw = cols[1] || '';
-          const exName = cols[4] || '';
-          const notes = cols[6] || '';
-          const weightKg = parseFloat(cols[9]) || 0;
-          const reps = parseInt(cols[10]) || 0;
-          const distKm = parseFloat(cols[11]) || 0;
-          const durationSec = parseFloat(cols[12]) || 0;
-
-          // Parse Date (e.g. "Nov 3, 2026, 5:14 PM" -> "2026-11-03")
-          const dateStr = formatDateFromHevyString(startTimeRaw);
-          const workoutKey = `${title}_${dateStr}`;
-
-          if (!workoutsMap[workoutKey]) {
-            workoutsMap[workoutKey] = {
-              id: `w-${dateStr}-${Math.random().toString(36).substring(2, 6)}`,
-              title: title,
-              date: dateStr,
-              durationMinutes: 60,
-              exercises: []
-            };
-          }
-
-          let ex = workoutsMap[workoutKey].exercises.find(e => e.name === exName);
-          if (!ex) {
-            ex = { name: exName, notes: notes || undefined, sets: [] };
-            workoutsMap[workoutKey].exercises.push(ex);
-          }
-
-          const setObj = {};
-          if (weightKg > 0) setObj.weight = weightKg;
-          if (reps > 0) setObj.reps = reps;
-          if (distKm > 0) setObj.km = distKm;
-          if (durationSec > 0) setObj.seconds = durationSec;
-
-          ex.sets.push(setObj);
+    function normalizeDate(raw) {
+      if (raw === undefined || raw === null) return null;
+      const s = String(raw).trim().replace(/^"|"$/g, '');
+      if (!s) return null;
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+      if (/^\d{5}(\.\d+)?$/.test(s)) {
+        const serial = Math.floor(Number(s));
+        const utc = new Date(Date.UTC(1899, 11, 30) + serial * 86400000);
+        return utc.toISOString().slice(0, 10);
+      }
+      const numeric = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})/);
+      if (numeric) {
+        let day = Number(numeric[1]);
+        let month = Number(numeric[2]);
+        const year = Number(numeric[3]);
+        if (day > 12 && month <= 12) {
+          /* already day/month */
+        } else if (month > 12 && day <= 12) {
+          const swap = day;
+          day = month;
+          month = swap;
         }
-      } else {
-        // Fallback simple line-by-line parser for text share
-        let currentW = null;
-        let currentEx = null;
+        if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+      const parsed = new Date(s);
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        const d = String(parsed.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      return null;
+    }
 
-        lines.forEach(line => {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('Workout:') || trimmed.startsWith('Trening:')) {
-            const title = trimmed.replace(/Workout:|Trening:/i, '').trim();
-            const dateStr = new Date().toISOString().split('T')[0];
-            currentW = {
-              id: `w-${dateStr}-${Math.random().toString(36).substring(2, 6)}`,
-              title: title || 'Workout',
-              date: dateStr,
-              durationMinutes: 60,
-              exercises: []
-            };
-            workoutsMap[title + dateStr] = currentW;
-          } else if (trimmed.startsWith('- ') && currentW) {
-            currentEx = { name: trimmed.replace('- ', '').trim(), sets: [] };
-            currentW.exercises.push(currentEx);
-          } else if (trimmed.match(/Set \d+:/i) && currentEx) {
-            const wtMatch = trimmed.match(/(\d+(\.\d+)?)kg/i);
-            const repsMatch = trimmed.match(/(\d+)\s*reps/i);
-            currentEx.sets.push({
-              weight: wtMatch ? parseFloat(wtMatch[1]) : 0,
-              reps: repsMatch ? parseInt(repsMatch[1]) : 0
-            });
+    function slugify(value) {
+      const slug = String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+      return slug || 'workout';
+    }
+
+    function findCol(cols, names) {
+      for (let i = 0; i < cols.length; i++) {
+        const c = String(cols[i] || '').trim().toLowerCase().replace(/^\uFEFF/, '').replace(/\s+/g, '_');
+        if (names.includes(c)) return i;
+      }
+      return -1;
+    }
+
+    function headerIndex(cols) {
+      const distance = findCol(cols, ['distance_km', 'distance', 'km', 'distance_m', 'distance_meters']);
+      const distanceName = distance >= 0 ? String(cols[distance] || '').trim().toLowerCase().replace(/\s+/g, '_') : '';
+      return {
+        title: findCol(cols, ['title', 'workout', 'workout_title', 'session', 'workout_name']),
+        date: findCol(cols, ['date', 'workout_date']),
+        start: findCol(cols, ['start_time', 'start', 'starttime']),
+        end: findCol(cols, ['end_time', 'end', 'endtime']),
+        exercise: findCol(cols, ['exercise_title', 'exercise', 'exercise_name', 'movement']),
+        notes: findCol(cols, ['exercise_notes', 'notes', 'note']),
+        setIndex: findCol(cols, ['set_index', 'set', 'set_number']),
+        weight: findCol(cols, ['weight_kg', 'weight', 'kg']),
+        reps: findCol(cols, ['reps', 'rep', 'repetitions']),
+        distance: distance,
+        duration: findCol(cols, ['duration_seconds', 'duration_sec', 'duration', 'seconds', 'time_sec']),
+        distanceIsMeters: distanceName === 'distance_m' || distanceName === 'distance_meters'
+      };
+    }
+
+    function headerIsRecognized(idx) {
+      return idx.exercise >= 0 || (idx.title >= 0 && (idx.start >= 0 || idx.date >= 0)) || (idx.date >= 0 && idx.title >= 0);
+    }
+
+    function cell(cols, idx) {
+      if (idx === undefined || idx < 0 || idx >= cols.length) return '';
+      return cols[idx];
+    }
+
+    function rowsToWorkouts(lines, idx) {
+      const workoutsMap = {};
+      lines.forEach(line => {
+        if (!line || /^"?title"?,/i.test(line)) return;
+        const cols = parseCsvLine(line);
+        if (cols.length < 3) return;
+        const title = cell(cols, idx.title) || 'Workout';
+        const startRaw = cell(cols, idx.start);
+        const dateStr = normalizeDate(cell(cols, idx.date)) || normalizeDate(startRaw);
+        const exName = cell(cols, idx.exercise);
+        if (!dateStr || !exName) return;
+
+        const key = `${dateStr}__${title}`;
+        if (!workoutsMap[key]) {
+          workoutsMap[key] = {
+            id: `w-${dateStr}-${slugify(title)}`,
+            title: title,
+            date: dateStr,
+            exercises: []
+          };
+        }
+        const workout = workoutsMap[key];
+        const endRaw = cell(cols, idx.end);
+        if (startRaw && endRaw) {
+          const startDate = new Date(startRaw);
+          const endDate = new Date(endRaw);
+          if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime()) && endDate > startDate) {
+            workout.durationMinutes = Math.max(1, Math.round((endDate - startDate) / 60000));
           }
+        }
+
+        const notes = cell(cols, idx.notes);
+        let exercise = workout.exercises.find(e => e.name === exName);
+        if (!exercise) {
+          exercise = { name: exName, sets: [] };
+          if (notes) exercise.notes = notes;
+          workout.exercises.push(exercise);
+        } else if (notes && exercise.notes && !exercise.notes.split(' · ').includes(notes)) {
+          exercise.notes = `${exercise.notes} · ${notes}`;
+        } else if (notes && !exercise.notes) {
+          exercise.notes = notes;
+        }
+
+        let dist = parseNum(cell(cols, idx.distance));
+        if (idx.distanceIsMeters) dist = dist / 1000;
+        else if (dist > 30) dist = dist / 1000;
+        const setObj = { _order: parseNum(cell(cols, idx.setIndex)) || (exercise.sets.length + 1) };
+        const weight = parseNum(cell(cols, idx.weight));
+        const reps = parseNum(cell(cols, idx.reps));
+        const seconds = parseDuration(cell(cols, idx.duration));
+        if (weight > 0) setObj.weight = Math.round(weight * 100) / 100;
+        if (reps > 0) setObj.reps = Math.round(reps);
+        if (dist > 0) setObj.km = Math.round(dist * 1000) / 1000;
+        if (seconds > 0) setObj.seconds = Math.round(seconds * 10) / 10;
+        if (setObj.weight || setObj.reps || setObj.km || setObj.seconds) exercise.sets.push(setObj);
+      });
+
+      return Object.values(workoutsMap).map(w => {
+        w.exercises.forEach(ex => {
+          ex.sets.sort((a, b) => a._order - b._order);
+          ex.sets.forEach(s => { delete s._order; });
+        });
+        w.exercises = w.exercises.filter(ex => ex.sets.length > 0);
+        return w;
+      }).filter(w => w.exercises.length > 0);
+    }
+
+    function parseHevyText(lines) {
+      const workoutsMap = {};
+      let currentW = null;
+      let currentEx = null;
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (/^(workout|trening)\s*:/i.test(trimmed)) {
+          const rest = trimmed.replace(/^(workout|trening)\s*:/i, '').trim();
+          const dateIn = rest.match(/(\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}[./]\d{4})/);
+          const dateStr = dateIn ? normalizeDate(dateIn[1]) : todayISO();
+          const title = rest.replace(dateIn ? dateIn[0] : '', '').replace(/[|–—-]\s*$/, '').trim() || 'Workout';
+          currentW = {
+            id: `w-${dateStr}-${slugify(title)}`,
+            title: title,
+            date: dateStr,
+            exercises: []
+          };
+          workoutsMap[`${dateStr}__${title}`] = currentW;
+          currentEx = null;
+        } else if (/^[-•]\s+/.test(trimmed) && currentW) {
+          currentEx = { name: trimmed.replace(/^[-•]\s+/, '').trim(), sets: [] };
+          currentW.exercises.push(currentEx);
+        } else if (/set\s*\d+/i.test(trimmed) && currentEx) {
+          const wtMatch = trimmed.match(/(\d+(?:[.,]\d+)?)\s*kg/i);
+          const repsMatch = trimmed.match(/[x×]\s*(\d+)/i) || trimmed.match(/(\d+)\s*reps/i);
+          const setObj = {};
+          if (wtMatch) setObj.weight = parseNum(wtMatch[1]);
+          if (repsMatch) setObj.reps = parseInt(repsMatch[1], 10);
+          if (setObj.weight || setObj.reps) currentEx.sets.push(setObj);
+        }
+      });
+      return Object.values(workoutsMap).filter(w => w.exercises.some(e => e.sets.length));
+    }
+
+    function parseHevyRaw(rawText) {
+      const text = String(rawText || '').replace(/^\uFEFF/, '').trim();
+      if (!text) return [];
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const firstCols = parseCsvLine(lines[0]);
+      const idx = headerIndex(firstCols);
+      if (headerIsRecognized(idx)) return rowsToWorkouts(lines.slice(1), idx);
+      if (lines[0].includes(',') && firstCols.length >= 7 && normalizeDate(firstCols[0])) {
+        return rowsToWorkouts(lines, {
+          date: 0, title: 1, exercise: 2, setIndex: 3, weight: 4, reps: 5, distance: 6, duration: 7, notes: 8,
+          start: -1, end: -1, distanceIsMeters: false
         });
       }
-
-      return Object.values(workoutsMap);
+      if (lines[0].includes(',') && firstCols.length >= 11) {
+        return rowsToWorkouts(lines, {
+          title: 0, start: 1, end: 2, exercise: 4, notes: 6, setIndex: 7, weight: 9, reps: 10, distance: 11, duration: 12,
+          date: -1, distanceIsMeters: false
+        });
+      }
+      return parseHevyText(lines);
     }
 
     function parseCsvLine(line) {
@@ -2564,7 +3077,7 @@
       let inQuotes = false;
       for (let i = 0; i < line.length; i++) {
         const char = line[i];
-        if (char === '"' || char === '""') {
+        if (char === '"') {
           if (inQuotes && line[i + 1] === '"') {
             current += '"';
             i++;
@@ -2582,14 +3095,15 @@
       return result;
     }
 
-    function formatDateFromHevyString(raw) {
-      try {
-        const d = new Date(raw);
-        if (!isNaN(d.getTime())) {
-          return d.toISOString().split('T')[0];
-        }
-      } catch (e) {}
-      return "2026-11-03";
+    function refreshViews() {
+      updateKpis();
+      renderProgressionChart();
+      renderTonnageChart();
+      renderWorkoutTypeChart();
+      renderRowingAnalytics();
+      renderMuscleAnalytics();
+      const searchInp = document.getElementById('workout-search-input');
+      handleWorkoutSearch(searchInp ? searchInp.value : '');
     }
 
     /* --------------------------------------------------------------------------
@@ -2598,52 +3112,60 @@
     async function syncGoogleSheets() {
       const syncBtn = document.getElementById('btn-sync-text');
       const syncIcon = document.getElementById('sync-icon');
+      const isSr = currentLanguage === 'sr';
 
       if (!GOOGLE_SHEETS_CSV_URL || GOOGLE_SHEETS_CSV_URL.trim() === '') {
-        alert(
-          currentLanguage === 'sr'
-            ? "Google Sheets CSV link nije konfigurisan.\n\nDa biste povezali tabelu, otvorite izvorni kod i unesite URL u polje 'GOOGLE_SHEETS_CSV_URL' na samom vrhu script bloka."
-            : "Google Sheets CSV URL is empty.\n\nPlease open the HTML source code and paste your published Google Sheets CSV URL into 'GOOGLE_SHEETS_CSV_URL' at the very top of the script tag."
-        );
+        alert(isSr
+          ? "Google Sheets CSV link nije konfigurisan.\n\nDa biste povezali tabelu, otvorite izvorni kod i unesite URL u polje 'GOOGLE_SHEETS_CSV_URL' na samom vrhu script bloka."
+          : "Google Sheets CSV URL is empty.\n\nPlease open the HTML source code and paste your published Google Sheets CSV URL into 'GOOGLE_SHEETS_CSV_URL' at the very top of the script tag.");
         return;
       }
 
-      if (syncBtn) syncBtn.textContent = currentLanguage === 'sr' ? "Povezivanje..." : "Syncing...";
-      if (syncIcon) syncIcon.style.animation = "spin 1s linear infinite";
+      if (syncBtn) syncBtn.textContent = isSr ? "Povezivanje..." : "Syncing...";
+      if (syncIcon) syncIcon.classList.add('syncing');
 
       try {
         const response = await fetch(GOOGLE_SHEETS_CSV_URL);
-        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const csvText = await response.text();
-
         const parsed = parseHevyRaw(csvText);
-        if (parsed.length > 0) {
-          allWorkouts = parsed;
-          saveState();
-          updateKpis();
-          renderProgressionChart();
-          renderTonnageChart();
-          renderWorkoutTypeChart();
-          renderRowingAnalytics();
-          renderMuscleAnalytics();
-          renderWorkoutHistory(allWorkouts);
-
-          alert(currentLanguage === 'sr' 
-            ? `Uspešna sinhronizacija! Učitano ${parsed.length} treninga sa Google Sheets-a.`
-            : `Sync successful! Loaded ${parsed.length} workouts from Google Sheets.`
-          );
-        } else {
-          throw new Error("Prazan ili nevažeći format tabele.");
+        if (!parsed.length) {
+          alert(isSr
+            ? "Tabela je povezana, ali nema nijednog treninga — samo zaglavlje.\n\nOčekivane kolone: Date, Workout, Exercise, Set, Weight_kg, Reps, Distance_km, Duration_sec, Notes.\nLokalni dnevnik nije obrisan."
+            : "The sheet is connected, but it has no workout rows yet — only the header.\n\nExpected columns: Date, Workout, Exercise, Set, Weight_kg, Reps, Distance_km, Duration_sec, Notes.\nThe local log was kept.");
+          return;
         }
+
+        let added = 0;
+        let updated = 0;
+        parsed.forEach(pw => {
+          const existing = allWorkouts.findIndex(w => w.date === pw.date && w.title === pw.title);
+          if (existing >= 0) {
+            const previous = allWorkouts[existing];
+            allWorkouts[existing] = {
+              ...pw,
+              durationMinutes: pw.durationMinutes || previous.durationMinutes
+            };
+            updated++;
+          } else {
+            allWorkouts.push(pw);
+            added++;
+          }
+        });
+        allWorkouts.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        saveState();
+        refreshViews();
+        alert(isSr
+          ? `Sinhronizacija uspešna. Novo: ${added}, ažurirano: ${updated}. U bazi je sada ${allWorkouts.length} treninga.`
+          : `Sync successful. Added ${added}, updated ${updated}. The log now has ${allWorkouts.length} workouts.`);
       } catch (err) {
         console.error("Sheets sync error:", err);
-        alert(currentLanguage === 'sr'
+        alert(isSr
           ? "Greška prilikom preuzimanja tabele: " + err.message
-          : "Error syncing Google Sheets: " + err.message
-        );
+          : "Error syncing Google Sheets: " + err.message);
       } finally {
-        if (syncBtn) syncBtn.textContent = currentLanguage === 'sr' ? "Sinhronizuj Sheets" : "Sync Google Sheets";
-        if (syncIcon) syncIcon.style.animation = "none";
+        if (syncBtn) syncBtn.textContent = isSr ? "Sinhronizuj Sheets" : "Sync Google Sheets";
+        if (syncIcon) syncIcon.classList.remove('syncing');
       }
     }
 
