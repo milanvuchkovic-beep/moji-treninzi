@@ -1,0 +1,2464 @@
+<!DOCTYPE html>
+<html lang="sr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="artifact-type" content="dashboard">
+  <meta name="design-style" content="carbon">
+  <title>Milan Fitness Telemetry & Hevy Analytics</title>
+
+  <!-- Pinned Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Pinned Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+
+  <!-- Pinned Chart.js & Lucide Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@1.43.0/dist/umd/lucide.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #161616;
+      --surface-container-low: #1c1c1c;
+      --surface-container: #262626;
+      --surface-container-high: #333333;
+      --surface-container-highest: #3e3e3e;
+      --on-surface: #f4f4f4;
+      --on-surface-variant: #c6c6c6;
+      --outline: #8d8d8d;
+      --outline-variant: #393939;
+      --primary: #78a9ff;
+      --on-primary: #161616;
+      --primary-container: #0043ce;
+      --on-primary-container: #edf5ff;
+      --secondary: #a8a8a8;
+      --tertiary: #42be65;
+      --error: #ff8389;
+      --warning: #f1c21b;
+      --data-1: #78a9ff;
+      --data-2: #be95ff;
+      --data-3: #3ddbd9;
+      --data-4: #ff7eb6;
+      --data-5: #42be65;
+      --data-context: #6f6f6f;
+      --font-headline: 'IBM Plex Sans', sans-serif;
+      --font-body: 'IBM Plex Sans', sans-serif;
+      --font-label: 'IBM Plex Mono', monospace;
+      --rounded: 0.125rem;
+      --rounded-lg: 0.25rem;
+      --rounded-full: 0.75rem;
+      --shadow-1: 0 2px 6px rgb(0 0 0 / 0.4);
+      --shadow-2: 0 4px 16px rgb(0 0 0 / 0.6);
+      --rule: 1px solid var(--outline-variant);
+      --indicator: 2px solid var(--primary);
+    }
+
+    body {
+      background-color: var(--background);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-mono-val {
+      font-family: var(--font-label);
+      font-feature-settings: "tnum" 1;
+    }
+
+    .border-rule {
+      border-color: var(--outline-variant);
+    }
+
+    .active-indicator {
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .chart-container {
+      position: relative;
+      min-height: 260px;
+      width: 100%;
+    }
+
+    /* Modal Backdrop */
+    .modal-backdrop {
+      background: rgba(10, 10, 10, 0.85);
+      backdrop-filter: blur(4px);
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1c1c1c;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #393939;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #525252;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-neutral-100 flex flex-col">
+
+  <!-- Top App Navigation / Header -->
+  <header class="bg-[#1c1c1c] border-b border-rule relative z-30 px-3 sm:px-6 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <!-- Title & Milan Profile Badge -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-[#262626] border border-blue-500/30 flex items-center justify-center text-blue-400 font-mono font-bold text-sm tracking-wider">
+          M47
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-semibold tracking-tight text-white flex items-center gap-2">
+              <span id="txt-app-title">Milan Fitness Telemetry</span>
+              <span class="text-xs px-2 py-0.5 bg-blue-950/80 text-blue-300 border border-blue-800 font-mono font-normal">v3.4 Hybrid</span>
+            </h1>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-neutral-400 font-mono">
+            <span>197 cm</span>
+            <span class="text-neutral-600">•</span>
+            <span>116 kg</span>
+            <span class="text-neutral-600">•</span>
+            <span id="txt-profile-note" class="text-neutral-300">Concept2 & Hipertrofija</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons & Language Toggle -->
+      <div class="flex items-center gap-2">
+        <!-- Language Switcher -->
+        <button id="btn-lang-toggle" onclick="toggleLanguage()" class="px-2.5 py-1.5 bg-[#262626] hover:bg-[#333333] border border-rule text-xs font-mono uppercase tracking-wider text-neutral-300 transition-colors">
+          <span id="txt-lang-label">SR / EN</span>
+        </button>
+
+        <!-- Safety Guide Trigger -->
+        <button onclick="openTechniqueModal('bench_press')" class="px-2.5 py-1.5 bg-[#262626] hover:bg-[#333333] border border-rule text-xs font-mono text-neutral-300 flex items-center gap-1.5 transition-colors" title="Milan Biomechanics & Elbow Safety">
+          <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
+          <span class="hidden sm:inline" id="txt-nav-biomech">Biomehanika</span>
+        </button>
+
+        <!-- GitHub / Export Dropdown Trigger -->
+        <button onclick="openExportModal()" class="px-2.5 py-1.5 bg-[#262626] hover:bg-[#333333] border border-rule text-xs font-mono text-neutral-300 flex items-center gap-1.5 transition-colors" title="Export JSON / Standalone">
+          <i data-lucide="download" class="w-4 h-4 text-emerald-400"></i>
+          <span class="hidden sm:inline" id="txt-nav-export">Izvoz</span>
+        </button>
+
+        <!-- Add Workout Primary Button -->
+        <button onclick="openHevyModal()" class="px-3 py-1.5 bg-[#0f62fe] hover:bg-[#0353e9] text-white text-xs font-medium font-sans flex items-center gap-1.5 transition-colors shadow-sm">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span id="txt-btn-add-hevy">+ Dodaj trening iz Hevy-ja</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-6">
+
+    <!-- Date Range Filter & Quick Telemetry Bar -->
+    <div class="bg-[#1c1c1c] border border-rule p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <span class="text-xs font-mono uppercase tracking-wider text-neutral-400 block mb-1.5" id="txt-filter-label">Vremenski Period</span>
+        <div class="inline-flex flex-wrap gap-1 bg-[#262626] p-1 border border-rule">
+          <button onclick="setFilterRange('1m')" id="filter-btn-1m" class="px-3 py-1 text-xs font-mono text-neutral-300 hover:text-white transition-colors">1 mesec</button>
+          <button onclick="setFilterRange('3m')" id="filter-btn-3m" class="px-3 py-1 text-xs font-mono text-neutral-300 hover:text-white transition-colors">3 meseca</button>
+          <button onclick="setFilterRange('6m')" id="filter-btn-6m" class="px-3 py-1 text-xs font-mono text-neutral-300 hover:text-white transition-colors">6 meseci</button>
+          <button onclick="setFilterRange('1y')" id="filter-btn-1y" class="px-3 py-1 text-xs font-mono text-neutral-300 hover:text-white transition-colors">1 godina</button>
+          <button onclick="setFilterRange('all')" id="filter-btn-all" class="px-3 py-1 text-xs font-mono bg-[#0f62fe] text-white font-medium transition-colors">Svi podaci</button>
+        </div>
+      </div>
+
+      <!-- Quick Status Indicators -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono border-t md:border-t-0 md:border-l border-rule pt-3 md:pt-0 md:pl-4">
+        <div>
+          <span class="text-neutral-500 block" id="txt-stat-workouts-lbl">Treninga</span>
+          <span id="val-filtered-count" class="text-white font-bold text-base">0</span>
+        </div>
+        <div>
+          <span class="text-neutral-500 block" id="txt-stat-tonnage-lbl">Volumen (kg)</span>
+          <span id="val-filtered-volume" class="text-blue-400 font-bold text-base">0 t</span>
+        </div>
+        <div>
+          <span class="text-neutral-500 block" id="txt-stat-rowing-lbl">Concept2 (km)</span>
+          <span id="val-filtered-rowing-dist" class="text-emerald-400 font-bold text-base">0 km</span>
+        </div>
+        <div>
+          <span class="text-neutral-500 block" id="txt-stat-sets-lbl">Radnih serija</span>
+          <span id="val-filtered-sets" class="text-amber-400 font-bold text-base">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Personal Records (PR) Top Grid -->
+    <section>
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-sm font-mono uppercase tracking-wider text-neutral-400 flex items-center gap-2" id="txt-sec-prs">
+          <i data-lucide="trophy" class="w-4 h-4 text-amber-400"></i>
+          Lični Rekordi & Ključni Parametri
+        </h2>
+        <span class="text-xs text-neutral-500 font-mono" id="txt-pr-note">Ažurirano sa najnovijim sesijama</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <!-- Bench Press PR -->
+        <div onclick="openTechniqueModal('bench_press')" class="cursor-pointer bg-[#262626] hover:bg-[#2b2b2b] border border-rule p-4 border-b-2 border-b-[#78a9ff] transition-all">
+          <div class="flex items-center justify-between text-xs text-neutral-400 font-mono mb-1">
+            <span>BENCH PRESS (BARBELL)</span>
+            <i data-lucide="info" class="w-3.5 h-3.5 text-neutral-500"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-2xl sm:text-3xl font-light text-white font-mono-val" id="val-pr-bench">100</span>
+            <span class="text-xs text-neutral-400 font-mono">kg × 2</span>
+          </div>
+          <div class="text-[11px] text-neutral-400 mt-2 font-mono flex items-center justify-between">
+            <span id="txt-pr-bench-date">03. Nov 2026 (Serija 5)</span>
+            <span class="text-blue-400 text-[10px]">Trocifreno</span>
+          </div>
+        </div>
+
+        <!-- Concept2 500m Sprint PR -->
+        <div onclick="scrollToSection('sec-concept2')" class="cursor-pointer bg-[#262626] hover:bg-[#2b2b2b] border border-rule p-4 border-b-2 border-b-[#42be65] transition-all">
+          <div class="flex items-center justify-between text-xs text-neutral-400 font-mono mb-1">
+            <span>CONCEPT2 500M SPRINT</span>
+            <i data-lucide="gauge" class="w-3.5 h-3.5 text-emerald-400"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-2xl sm:text-3xl font-light text-white font-mono-val" id="val-pr-c2-500">1:41.0</span>
+            <span class="text-xs text-neutral-400 font-mono">/ 500m</span>
+          </div>
+          <div class="text-[11px] text-neutral-400 mt-2 font-mono flex items-center justify-between">
+            <span id="txt-pr-c2-date">PB 101s (Prigušnica 10)</span>
+            <span class="text-emerald-400 text-[10px]">HIIT Peak</span>
+          </div>
+        </div>
+
+        <!-- Pull Ups @ 116 kg BW -->
+        <div onclick="openTechniqueModal('pull_up')" class="cursor-pointer bg-[#262626] hover:bg-[#2b2b2b] border border-rule p-4 border-b-2 border-b-[#be95ff] transition-all">
+          <div class="flex items-center justify-between text-xs text-neutral-400 font-mono mb-1">
+            <span>PULL UP (NEUTRAL GRIP)</span>
+            <i data-lucide="info" class="w-3.5 h-3.5 text-neutral-500"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-2xl sm:text-3xl font-light text-white font-mono-val" id="val-pr-pullup">6</span>
+            <span class="text-xs text-neutral-400 font-mono">ponavljanja</span>
+          </div>
+          <div class="text-[11px] text-neutral-400 mt-2 font-mono flex items-center justify-between">
+            <span>Vuča 116 kg mase</span>
+            <span class="text-purple-400 text-[10px]">Neutral Grip</span>
+          </div>
+        </div>
+
+        <!-- Incline Dumbbell Press -->
+        <div onclick="openTechniqueModal('incline_db')" class="cursor-pointer bg-[#262626] hover:bg-[#2b2b2b] border border-rule p-4 border-b-2 border-b-[#3ddbd9] transition-all">
+          <div class="flex items-center justify-between text-xs text-neutral-400 font-mono mb-1">
+            <span>INCLINE BENCH (DB)</span>
+            <i data-lucide="info" class="w-3.5 h-3.5 text-neutral-500"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-2xl sm:text-3xl font-light text-white font-mono-val" id="val-pr-incline-db">64</span>
+            <span class="text-xs text-neutral-400 font-mono">kg × 10</span>
+          </div>
+          <div class="text-[11px] text-neutral-400 mt-2 font-mono flex items-center justify-between">
+            <span>2× 32 kg (Ugao 45°)</span>
+            <span class="text-teal-400 text-[10px]">Lakat Safe</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Biomechanics Alert Banner for Milan (197cm, 116kg) -->
+    <div class="bg-[#1c1c1c] border-l-4 border-amber-400 border-rule p-4 text-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+      <div class="flex items-start gap-3">
+        <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
+        <div>
+          <div class="font-medium text-white flex items-center gap-2">
+            <span id="txt-banner-title">Biomehanički protokol za Milanovu konstituciju (197 cm / 116 kg)</span>
+          </div>
+          <p class="text-xs text-neutral-300 mt-1 leading-relaxed" id="txt-banner-desc">
+            Zbog dugih poluga ruku: neutralni hvat na zgibovima i lat mašini je obavezan; poluneutralni ugao od 45° na kosoj klupi štiti desni lakat; mašine sa direktnim 1:1 prenosom (Chest Fly) zahtevaju fiksiran lakat i kontrolisanu ekscentriku; Farmers Walk je eliminisan.
+          </p>
+        </div>
+      </div>
+      <button onclick="openTechniqueModal('elbow_protocol')" class="shrink-0 px-3 py-1.5 bg-[#262626] hover:bg-[#333333] border border-rule text-xs font-mono text-amber-300 flex items-center gap-1">
+        <span id="txt-banner-btn">Vidi protokol lakta</span>
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+
+    <!-- Section 5: Concept2 Rowing Analytics (Requirement 5) -->
+    <section id="sec-concept2" class="bg-[#1c1c1c] border border-rule p-4 sm:p-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-4 border-b border-rule">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 bg-emerald-400 inline-block"></span>
+            <h2 class="text-base font-semibold text-white tracking-tight flex items-center gap-2" id="txt-c2-title">
+              Concept2 Veslač Telemetrija & HIIT Analitika
+            </h2>
+          </div>
+          <p class="text-xs text-neutral-400 font-mono mt-0.5" id="txt-c2-subtitle">
+            Sprint intervali 500m (Prigušnica: 10) • Ciljani tempo: 1:48–1:50 • Finiš: 1:45 • Odmor: 2 min
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-1 bg-emerald-950/60 border border-emerald-800 text-emerald-300 text-xs font-mono">
+            Damper zakucan na 10
+          </span>
+        </div>
+      </div>
+
+      <!-- Telemetry Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div class="bg-[#262626] p-3 border border-rule">
+          <span class="text-[11px] font-mono uppercase text-neutral-400 block" id="txt-c2-card-pace">Zadnji HIIT Prosek</span>
+          <span class="text-xl sm:text-2xl font-light text-white font-mono-val" id="val-c2-recent-pace">1:48.0</span>
+          <span class="text-[10px] text-emerald-400 block font-mono mt-1">✓ U ciljnoj zoni (28. Okt 2026)</span>
+        </div>
+
+        <div class="bg-[#262626] p-3 border border-rule">
+          <span class="text-[11px] font-mono uppercase text-neutral-400 block" id="txt-c2-card-finish">Najbrži Finiš Split</span>
+          <span class="text-xl sm:text-2xl font-light text-emerald-400 font-mono-val" id="val-c2-best-finish">1:45.0</span>
+          <span class="text-[10px] text-neutral-400 block font-mono mt-1">23. Okt 2026 (Interval 4)</span>
+        </div>
+
+        <div class="bg-[#262626] p-3 border border-rule">
+          <span class="text-[11px] font-mono uppercase text-neutral-400 block" id="txt-c2-card-rest">Protokol Pauze</span>
+          <span class="text-xl sm:text-2xl font-light text-white font-mono-val">2:00</span>
+          <span class="text-[10px] text-neutral-400 block font-mono mt-1">minuta između serija</span>
+        </div>
+
+        <div class="bg-[#262626] p-3 border border-rule">
+          <span class="text-[11px] font-mono uppercase text-neutral-400 block" id="txt-c2-card-alltime">All-Time 500m PR</span>
+          <span class="text-xl sm:text-2xl font-light text-blue-400 font-mono-val">1:41.0</span>
+          <span class="text-[10px] text-neutral-400 block font-mono mt-1">101s (18. Feb 2025)</span>
+        </div>
+      </div>
+
+      <!-- Charts & Split Breakdown -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <!-- Split Times Line Chart -->
+        <div class="lg:col-span-2 bg-[#222222] p-3 border border-rule flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-mono uppercase tracking-wider text-neutral-300" id="txt-c2-chart-title">
+              Istorija Split Vremena na 500m (Sekunde po zaveslaju)
+            </span>
+            <div class="flex items-center gap-3 text-[11px] font-mono">
+              <span class="flex items-center gap-1 text-emerald-400"><span class="w-2.5 h-2.5 bg-emerald-400 inline-block"></span> 500m Split</span>
+              <span class="flex items-center gap-1 text-amber-400"><span class="w-2.5 h-0.5 bg-amber-400 inline-block"></span> Ciljna zona (108–110s)</span>
+              <span class="flex items-center gap-1 text-blue-400"><span class="w-2.5 h-0.5 bg-blue-400 inline-block"></span> Finiš (105s)</span>
+            </div>
+          </div>
+          <div class="chart-container" style="min-height: 250px;">
+            <canvas id="chart-c2-splits"></canvas>
+          </div>
+          <div class="text-[11px] font-mono text-neutral-400 mt-2 flex justify-between">
+            <span>Okt 28: 4 serije zakucane na 108s (1:48)</span>
+            <span>Okt 23: zadnja serija 105s (1:45 finiš)</span>
+          </div>
+        </div>
+
+        <!-- Recent HIIT Intervals Log Table -->
+        <div class="bg-[#222222] p-3 border border-rule flex flex-col">
+          <span class="text-xs font-mono uppercase tracking-wider text-neutral-300 mb-2" id="txt-c2-table-title">
+            Najnovije 500m Serije u Hevy-ju
+          </span>
+          <div class="overflow-y-auto max-h-[260px] text-xs font-mono">
+            <table class="w-full text-left">
+              <thead>
+                <tr class="text-neutral-500 border-b border-rule">
+                  <th class="pb-1.5">Datum</th>
+                  <th class="pb-1.5 text-center">Serija</th>
+                  <th class="pb-1.5 text-right">Vreme</th>
+                  <th class="pb-1.5 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-c2-intervals" class="divide-y divide-rule/60 text-neutral-300">
+                <!-- Dynamically Populated -->
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-auto pt-2 border-t border-rule text-[11px] text-neutral-400 font-mono">
+            <span>Damper 10 iziskuje snažan potisak nogu (60%) pre povlačenja rukama.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Muscle Group Volume Breakdown (Requirement 4) -->
+    <section class="bg-[#1c1c1c] border border-rule p-4 sm:p-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-4 border-b border-rule">
+        <div>
+          <h2 class="text-base font-semibold text-white tracking-tight flex items-center gap-2" id="txt-mg-title">
+            <i data-lucide="layers" class="w-4 h-4 text-blue-400"></i>
+            Raspodela Volumena po Mišićnim Grupama
+          </h2>
+          <p class="text-xs text-neutral-400 font-mono mt-0.5" id="txt-mg-subtitle">
+            Kombinovani prikaz podignute tonaže (kg) i broja radnih serija u odabranom filteru
+          </p>
+        </div>
+        <div class="text-xs font-mono text-neutral-400">
+          <span id="txt-mg-active-filter">Filter: Svi podaci</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-center">
+        <!-- Muscle Distribution Doughnut Chart -->
+        <div class="bg-[#222222] p-3 border border-rule flex flex-col items-center">
+          <span class="text-xs font-mono uppercase tracking-wider text-neutral-400 mb-2 w-full text-left" id="txt-mg-chart-lbl">
+            Udeo Tonaže po Mišićnim Partijama
+          </span>
+          <div class="chart-container" style="min-height: 240px; max-height: 250px;">
+            <canvas id="chart-muscle-volume"></canvas>
+          </div>
+        </div>
+
+        <!-- Muscle Detail Cards Grid -->
+        <div class="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-2.5" id="container-muscle-cards">
+          <!-- Dynamically populated muscle group cards -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Analytics Charts: Progression & Frequency -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <!-- Bench & Press Strength Trend -->
+      <div class="bg-[#1c1c1c] border border-rule p-4">
+        <div class="flex items-center justify-between mb-3 border-b border-rule pb-2">
+          <h3 class="text-sm font-semibold text-white tracking-tight flex items-center gap-2" id="txt-chart-bench-title">
+            <i data-lucide="trending-up" class="w-4 h-4 text-blue-400"></i>
+            Progresija Snage: Bench Press (kg)
+          </h3>
+          <span class="text-xs font-mono text-neutral-400">Vrhunska radna serija</span>
+        </div>
+        <div class="chart-container" style="min-height: 240px;">
+          <canvas id="chart-bench-progression"></canvas>
+        </div>
+      </div>
+
+      <!-- Weekly / Monthly Volume Flow -->
+      <div class="bg-[#1c1c1c] border border-rule p-4">
+        <div class="flex items-center justify-between mb-3 border-b border-rule pb-2">
+          <h3 class="text-sm font-semibold text-white tracking-tight flex items-center gap-2" id="txt-chart-vol-title">
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-purple-400"></i>
+            Ukupan Trening Volumen (Tonaža po mesecima)
+          </h3>
+          <span class="text-xs font-mono text-neutral-400">Tonaža (kg)</span>
+        </div>
+        <div class="chart-container" style="min-height: 240px;">
+          <canvas id="chart-monthly-volume"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Workout History Feed & Exercise Logs -->
+    <section class="bg-[#1c1c1c] border border-rule p-4 sm:p-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-rule">
+        <div>
+          <h2 class="text-base font-semibold text-white tracking-tight flex items-center gap-2" id="txt-history-title">
+            <i data-lucide="calendar" class="w-4 h-4 text-blue-400"></i>
+            Dnevnik Treninga & Hevy Zapisi
+          </h2>
+          <p class="text-xs text-neutral-400 font-mono mt-0.5" id="txt-history-subtitle">
+            Hronološki pregled sa serijama, napomenama (1:1 sajla, damper 10, pauze) i vežbama
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="text" id="input-search-workouts" oninput="filterWorkoutList()" placeholder="Pretraži vežbu ili trening..." class="bg-[#262626] border border-rule text-xs px-3 py-1.5 font-mono text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-blue-400 w-48 sm:w-60">
+        </div>
+      </div>
+
+      <!-- Workouts List Container -->
+      <div id="container-workouts-feed" class="space-y-3">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-[#1c1c1c] border-t border-rule py-4 px-4 text-xs font-mono text-neutral-500 text-center">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div>
+        <span>Milan Telemetry • 197 cm / 116 kg • Concept2 & Hipertrofija</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="resetToHistoricalData()" class="hover:text-neutral-300 underline" id="txt-btn-reset-data">Resetuj na originalne podatke</button>
+        <span>•</span>
+        <button onclick="openExportModal()" class="hover:text-neutral-300 underline" id="txt-btn-footer-export">Izvoz podataka (JSON/HTML)</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: Built-in Hevy Text Parser ('+ Dodaj trening iz Hevy-ja')          -->
+  <!-- ========================================================================= -->
+  <div id="modal-hevy-parser" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 hidden">
+    <div class="modal-backdrop absolute inset-0" onclick="closeHevyModal()"></div>
+    <div class="relative bg-[#1c1c1c] border border-rule w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl z-10">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-rule flex items-center justify-between bg-[#262626]">
+        <div class="flex items-center gap-2">
+          <i data-lucide="file-plus" class="w-5 h-5 text-blue-400"></i>
+          <h3 class="text-sm sm:text-base font-semibold text-white" id="txt-modal-parser-title">
+            + Dodaj trening iz Hevy-ja (Tekstualni parser)
+          </h3>
+        </div>
+        <button onclick="closeHevyModal()" class="text-neutral-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 overflow-y-auto space-y-4 text-xs font-mono">
+        <div>
+          <label class="block text-neutral-300 font-medium mb-1" id="txt-modal-parser-label">
+            Nalepite sirovi tekst iz Hevy aplikacije:
+          </label>
+          <p class="text-[11px] text-neutral-400 mb-2" id="txt-modal-parser-desc">
+            Parser automatski prepoznaje naziv treninga, datum, vežbe, "Set X: YY kg x ZZ", "[Warmup]", distance (1.2 km), vremena (5min 0s) i napomene ("2-minutes breaks between sets", "1:1 transmission").
+          </p>
+          <textarea id="textarea-hevy-input" rows="8" placeholder="Full body A&#10;Nov 3, 2026, 5:14 PM&#10;&#10;Bench Press (Barbell)&#10;Set 1: 60 kg x 6 [Warmup]&#10;Set 2: 90 kg x 4&#10;Set 3: 100 kg x 2&#10;&#10;Rowing Machine&#10;&quot;2-minutes breaks between sets.&quot;&#10;Set 1: 1.16 km | 5min 0s&#10;Set 2: 0.5 km | 1min 48s" class="w-full bg-[#161616] border border-rule p-3 text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-blue-400 font-mono text-xs leading-relaxed"></textarea>
+        </div>
+
+        <!-- Quick Template Buttons -->
+        <div class="flex flex-wrap gap-2">
+          <button onclick="loadSampleHevyText(1)" class="px-2.5 py-1 bg-[#262626] hover:bg-[#333333] border border-rule text-neutral-300 text-[11px] transition-colors">
+            Učitaj primer: Full Body A (100kg Bench)
+          </button>
+          <button onclick="loadSampleHevyText(2)" class="px-2.5 py-1 bg-[#262626] hover:bg-[#333333] border border-rule text-neutral-300 text-[11px] transition-colors">
+            Učitaj primer: HIIT & Strength (Concept2 1:48)
+          </button>
+          <button onclick="previewHevyParse()" class="px-2.5 py-1 bg-neutral-700 hover:bg-neutral-600 text-white text-[11px] ml-auto transition-colors">
+            Pretpregled analize
+          </button>
+        </div>
+
+        <!-- Parsing Preview Box -->
+        <div id="box-parse-preview" class="hidden bg-[#222222] border border-rule p-3 space-y-2">
+          <span class="text-neutral-400 font-bold block text-[11px] uppercase tracking-wider">Rezultat Analize:</span>
+          <div id="preview-parse-content" class="text-neutral-300 space-y-1"></div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-rule flex items-center justify-between bg-[#262626]">
+        <button onclick="closeHevyModal()" class="px-3 py-1.5 border border-rule hover:bg-[#333333] text-neutral-300 text-xs font-mono">
+          Otkaži
+        </button>
+        <button onclick="submitParsedHevyWorkout()" class="px-4 py-1.5 bg-[#0f62fe] hover:bg-[#0353e9] text-white text-xs font-medium font-sans flex items-center gap-1.5">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span id="txt-btn-save-workout">Sačuvaj trening u bazu</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: Biomechanics & Technique Guide Modal (Requirement 6)              -->
+  <!-- ========================================================================= -->
+  <div id="modal-technique" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 hidden">
+    <div class="modal-backdrop absolute inset-0" onclick="closeTechniqueModal()"></div>
+    <div class="relative bg-[#1c1c1c] border border-rule w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl z-10">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-rule flex items-center justify-between bg-[#262626]">
+        <div class="flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>
+          <div>
+            <h3 class="text-sm sm:text-base font-semibold text-white" id="modal-tech-title">
+              Biomehanika & Protokol Bezbednosti
+            </h3>
+            <span class="text-[11px] font-mono text-neutral-400">Prilagođeno za Milan (197 cm / 116 kg / 47 god)</span>
+          </div>
+        </div>
+        <button onclick="closeTechniqueModal()" class="text-neutral-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 overflow-y-auto space-y-4 text-xs font-mono" id="modal-tech-content">
+        <!-- Dynamically injected with rich tailored tips -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-rule flex items-center justify-end bg-[#262626]">
+        <button onclick="closeTechniqueModal()" class="px-4 py-1.5 bg-neutral-700 hover:bg-neutral-600 text-white text-xs font-mono">
+          Zatvori
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: Standalone JSON & HTML Export Modal (Requirement 8)                -->
+  <!-- ========================================================================= -->
+  <div id="modal-export" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 hidden">
+    <div class="modal-backdrop absolute inset-0" onclick="closeExportModal()"></div>
+    <div class="relative bg-[#1c1c1c] border border-rule w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl z-10">
+      
+      <div class="px-5 py-4 border-b border-rule flex items-center justify-between bg-[#262626]">
+        <div class="flex items-center gap-2">
+          <i data-lucide="download-cloud" class="w-5 h-5 text-emerald-400"></i>
+          <h3 class="text-sm sm:text-base font-semibold text-white" id="txt-modal-export-title">
+            Izvoz Podataka & GitHub Pages Deploy
+          </h3>
+        </div>
+        <button onclick="closeExportModal()" class="text-neutral-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs font-mono">
+        <p class="text-neutral-300 leading-relaxed" id="txt-modal-export-desc">
+          Izvezite celokupnu ažuriranu bazu treninga u JSON formatu ili preuzmite kompletan samostalni HTML fajl spreman za postavljanje na GitHub Pages bez potrebe za backend serverom.
+        </p>
+
+        <div class="space-y-2">
+          <div class="bg-[#222222] p-3 border border-rule flex items-center justify-between">
+            <div>
+              <span class="font-bold text-white block">JSON Format</span>
+              <span class="text-neutral-400 text-[11px]" id="txt-export-json-sub">Kompletna istorija i prilagođeni treninzi</span>
+            </div>
+            <button onclick="downloadJSONExport()" class="px-3 py-1.5 bg-[#0f62fe] hover:bg-[#0353e9] text-white font-sans text-xs">
+              Preuzmi JSON
+            </button>
+          </div>
+
+          <div class="bg-[#222222] p-3 border border-rule flex items-center justify-between">
+            <div>
+              <span class="font-bold text-white block">Samostalni HTML Fajl</span>
+              <span class="text-neutral-400 text-[11px]" id="txt-export-html-sub">Sadrži sav ugrađeni JS i podatke za GitHub</span>
+            </div>
+            <button onclick="downloadHTMLExport()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-sans text-xs">
+              Preuzmi HTML
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-rule flex items-center justify-end bg-[#262626]">
+        <button onclick="closeExportModal()" class="px-4 py-1.5 bg-neutral-700 hover:bg-neutral-600 text-white text-xs font-mono">
+          Zatvori
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Mandatory Gemini Notebook API Shim for persistent state -->
+  <api-shim></api-shim>
+
+  <!-- Application Logic -->
+  <script>
+    // =========================================================================
+    // 1. Core Profile & Pre-populated Historical Dataset
+    // =========================================================================
+    const MILAN_PROFILE = {
+      name: `Milan`,
+      age: 47,
+      height_cm: 197,
+      weight_kg: 116,
+      levers: `Duge poluge ekstremiteta (197 cm), povećan obrtni moment u zglobu lakta i ramena.`,
+      weakPoints: `Desni lakat (proprioceptivne lažne uzbune preopterećenja bez upale) i torakalni deo leđa pri gubljenju retrakcije lopatica.`,
+      c2Protocol: `Damper uvek 10; 500m intervali sa 2 min pauze; tempo 1:48–1:50; finiš 1:45.`
+    };
+
+    // Pre-populated historical workouts structured from workouts (3).txt and recent exports
+    const INITIAL_WORKOUTS = [
+      {
+        id: `w_20261103`,
+        title: `Full body A`,
+        date: `2026-11-03`,
+        startTime: `Nov 3, 2026, 5:14 PM`,
+        exercises: [
+          { name: `Rowing Machine`, notes: ``, sets: [{ type: `normal`, weight: 0, reps: 0, distance_km: 1.28, duration_s: 300 }] },
+          { name: `Bench Press (Barbell)`, notes: ``, sets: [
+            { type: `warmup`, weight: 60, reps: 6 },
+            { type: `warmup`, weight: 90, reps: 2 },
+            { type: `warmup`, weight: 90, reps: 2 },
+            { type: `normal`, weight: 90, reps: 4 },
+            { type: `normal`, weight: 100, reps: 2 },
+            { type: `normal`, weight: 90, reps: 4 },
+            { type: `normal`, weight: 80, reps: 8 },
+            { type: `normal`, weight: 80, reps: 8 }
+          ]},
+          { name: `Reverse Grip Lat Pulldown (Cable)`, notes: `Neutral/Reverse grip elbow safe`, sets: [
+            { type: `normal`, weight: 86, reps: 10 },
+            { type: `normal`, weight: 86, reps: 10 },
+            { type: `normal`, weight: 86, reps: 10 }
+          ]},
+          { name: `Bulgarian Split Squat (Dumbbell)`, notes: `Spine compression relief`, sets: [
+            { type: `normal`, weight: 0, reps: 10 },
+            { type: `normal`, weight: 0, reps: 10 },
+            { type: `normal`, weight: 20, reps: 6 },
+            { type: `normal`, weight: 20, reps: 6 }
+          ]},
+          { name: `Standing Calf Raise (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 20, reps: 20 },
+            { type: `normal`, weight: 20, reps: 20 }
+          ]},
+          { name: `Zottman Curl (Dumbbell)`, notes: `Elbow tendon rehab`, sets: [
+            { type: `normal`, weight: 20, reps: 10 },
+            { type: `normal`, weight: 20, reps: 8 },
+            { type: `normal`, weight: 20, reps: 8 }
+          ]},
+          { name: `Lateral Raise (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 20, reps: 10 },
+            { type: `normal`, weight: 20, reps: 12 },
+            { type: `normal`, weight: 20, reps: 12 }
+          ]},
+          { name: `Butterfly (Pec Deck)`, notes: ``, sets: [
+            { type: `normal`, weight: 59, reps: 12 },
+            { type: `normal`, weight: 59, reps: 10 },
+            { type: `normal`, weight: 59, reps: 10 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20261028`,
+        title: `HIIT and strength 2`,
+        date: `2026-10-28`,
+        startTime: `Oct 28, 2026, 5:13 PM`,
+        exercises: [
+          { name: `Warm Up`, notes: ``, sets: [{ type: `normal`, duration_s: 300 }] },
+          { name: `Rowing Machine`, notes: `2-minutes breaks between sets. Damper 10`, sets: [
+            { type: `normal`, distance_km: 1.16, duration_s: 300 },
+            { type: `normal`, distance_km: 0.5, duration_s: 108 },
+            { type: `normal`, distance_km: 0.5, duration_s: 108 },
+            { type: `normal`, distance_km: 0.5, duration_s: 108 },
+            { type: `normal`, distance_km: 0.5, duration_s: 108 }
+          ]},
+          { name: `Pull Up`, notes: `Neutral grip, 116 kg BW`, sets: [
+            { type: `normal`, weight: 0, reps: 5 },
+            { type: `normal`, weight: 0, reps: 5 },
+            { type: `normal`, weight: 0, reps: 5 }
+          ]},
+          { name: `Shrug (Dumbbell)`, notes: `Trap builder replacing farmers walks`, sets: [
+            { type: `normal`, weight: 80, reps: 10 },
+            { type: `normal`, weight: 80, reps: 10 },
+            { type: `normal`, weight: 80, reps: 10 }
+          ]},
+          { name: `Chest Fly (Machine)`, notes: `1:1 transmission`, sets: [
+            { type: `normal`, weight: 45, reps: 10 },
+            { type: `normal`, weight: 55, reps: 10 },
+            { type: `normal`, weight: 55, reps: 6 }
+          ]},
+          { name: `Pullover (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 25, reps: 12 },
+            { type: `normal`, weight: 25, reps: 12 }
+          ]},
+          { name: `Zottman Curl (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 20, reps: 10 }
+          ]},
+          { name: `Dead Hang`, notes: `Spine decompression`, sets: [
+            { type: `normal`, duration_s: 30 },
+            { type: `normal`, duration_s: 30 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20261026`,
+        title: `Upper dumbbell`,
+        date: `2026-10-26`,
+        startTime: `Oct 26, 2026, 5:09 PM`,
+        exercises: [
+          { name: `Rowing Machine`, notes: ``, sets: [{ type: `normal`, distance_km: 1.0, duration_s: 246 }] },
+          { name: `Clean and Press`, notes: ``, sets: [{ type: `normal`, weight: 40, reps: 8 }] },
+          { name: `Incline Bench Press (Dumbbell)`, notes: `45-degree angle`, sets: [
+            { type: `normal`, weight: 64, reps: 10 },
+            { type: `normal`, weight: 64, reps: 10 },
+            { type: `normal`, weight: 64, reps: 9 }
+          ]},
+          { name: `Dumbbell Row`, notes: ``, sets: [
+            { type: `normal`, weight: 40, reps: 10 },
+            { type: `normal`, weight: 40, reps: 10 },
+            { type: `normal`, weight: 40, reps: 10 },
+            { type: `normal`, weight: 40, reps: 10 }
+          ]},
+          { name: `Butterfly (Pec Deck)`, notes: ``, sets: [
+            { type: `normal`, weight: 59, reps: 12 },
+            { type: `normal`, weight: 59, reps: 10 },
+            { type: `normal`, weight: 59, reps: 10 }
+          ]},
+          { name: `Lateral Raise (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 25, reps: 12 },
+            { type: `normal`, weight: 25, reps: 12 },
+            { type: `normal`, weight: 25, reps: 12 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20261023`,
+        title: `HIIT and strength`,
+        date: `2026-10-23`,
+        startTime: `Oct 23, 2026, 4:40 PM`,
+        exercises: [
+          { name: `Rowing Machine`, notes: `2-minutes breaks between sets.`, sets: [
+            { type: `normal`, distance_km: 1.14, duration_s: 300 },
+            { type: `normal`, distance_km: 0.5, duration_s: 109 },
+            { type: `normal`, distance_km: 0.5, duration_s: 108 },
+            { type: `normal`, distance_km: 0.5, duration_s: 108 },
+            { type: `normal`, distance_km: 0.5, duration_s: 105 } // Target finish 1:45!
+          ]},
+          { name: `Incline Bench Press (Barbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 60, reps: 10 },
+            { type: `normal`, weight: 80, reps: 6 },
+            { type: `normal`, weight: 80, reps: 6 }
+          ]},
+          { name: `Farmers Walk`, notes: `80kg`, sets: [
+            { type: `normal`, weight: 80, distance_km: 0.04 },
+            { type: `normal`, weight: 80, distance_km: 0.04 }
+          ]},
+          { name: `Shrug (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 80, reps: 10 },
+            { type: `normal`, weight: 80, reps: 10 }
+          ]},
+          { name: `Bicep Curl (Barbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 40, reps: 7 },
+            { type: `normal`, weight: 40, reps: 7 }
+          ]},
+          { name: `Triceps Rope Pushdown`, notes: ``, sets: [
+            { type: `normal`, weight: 45, reps: 12 },
+            { type: `normal`, weight: 45, reps: 12 },
+            { type: `normal`, weight: 45, reps: 8 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20261020`,
+        title: `Full body A`,
+        date: `2026-10-20`,
+        startTime: `Oct 20, 2026, 5:19 PM`,
+        exercises: [
+          { name: `Bench Press (Barbell)`, notes: ``, sets: [
+            { type: `warmup`, weight: 60, reps: 6 },
+            { type: `warmup`, weight: 90, reps: 2 },
+            { type: `normal`, weight: 90, reps: 8 },
+            { type: `normal`, weight: 90, reps: 8 },
+            { type: `normal`, weight: 90, reps: 5 },
+            { type: `normal`, weight: 80, reps: 7 }
+          ]},
+          { name: `Pull Up`, notes: `Neutral grip`, sets: [
+            { type: `normal`, reps: 5 },
+            { type: `normal`, reps: 5 },
+            { type: `normal`, reps: 5 }
+          ]},
+          { name: `Bulgarian Split Squat (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 0, reps: 10 },
+            { type: `normal`, weight: 0, reps: 10 },
+            { type: `normal`, weight: 20, reps: 10 },
+            { type: `normal`, weight: 20, reps: 10 }
+          ]},
+          { name: `Standing Calf Raise (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 20, reps: 30 },
+            { type: `normal`, weight: 20, reps: 30 }
+          ]},
+          { name: `Zottman Curl (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 28, reps: 8 },
+            { type: `normal`, weight: 28, reps: 8 },
+            { type: `normal`, weight: 28, reps: 6 }
+          ]},
+          { name: `Butterfly (Pec Deck)`, notes: ``, sets: [
+            { type: `normal`, weight: 59, reps: 10 },
+            { type: `normal`, weight: 59, reps: 12 },
+            { type: `normal`, weight: 73, reps: 8 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20261016`,
+        title: `HIIT and strength`,
+        date: `2026-10-16`,
+        startTime: `Oct 16, 2026, 3:50 PM`,
+        exercises: [
+          { name: `Rowing Machine`, notes: `2-minutes breaks between sets.`, sets: [
+            { type: `normal`, distance_km: 1.1, duration_s: 300 },
+            { type: `normal`, distance_km: 0.5, duration_s: 109 },
+            { type: `normal`, distance_km: 0.5, duration_s: 109 },
+            { type: `normal`, distance_km: 0.5, duration_s: 110 },
+            { type: `normal`, distance_km: 0.5, duration_s: 106 }
+          ]},
+          { name: `Incline Bench Press (Barbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 64, reps: 10 },
+            { type: `normal`, weight: 64, reps: 9 },
+            { type: `normal`, weight: 64, reps: 8 }
+          ]},
+          { name: `Shrug (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 80, reps: 10 },
+            { type: `normal`, weight: 80, reps: 10 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20261013`,
+        title: `Full body A`,
+        date: `2026-10-13`,
+        startTime: `Oct 13, 2026, 4:43 PM`,
+        exercises: [
+          { name: `Bench Press (Barbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 60, reps: 10 },
+            { type: `normal`, weight: 80, reps: 10 },
+            { type: `normal`, weight: 80, reps: 8 },
+            { type: `normal`, weight: 80, reps: 8 }
+          ]},
+          { name: `Bulgarian Split Squat (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 15, reps: 10 },
+            { type: `normal`, weight: 15, reps: 10 }
+          ]},
+          { name: `Lat Pulldown (Cable)`, notes: `Neutral grip`, sets: [
+            { type: `normal`, weight: 75, reps: 10 },
+            { type: `normal`, weight: 85, reps: 8 },
+            { type: `normal`, weight: 85, reps: 8 }
+          ]},
+          { name: `Lateral Raise (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 25, reps: 12 },
+            { type: `normal`, weight: 25, reps: 12 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20260923`,
+        title: `Full body A shoulders focus`,
+        date: `2026-09-23`,
+        startTime: `Sep 23, 2026, 4:38 PM`,
+        exercises: [
+          { name: `Bench Press (Barbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 80, reps: 10 },
+            { type: `normal`, weight: 90, reps: 6 },
+            { type: `normal`, weight: 90, reps: 5 }
+          ]},
+          { name: `Pull Up`, notes: ``, sets: [{ type: `normal`, reps: 5 }, { type: `normal`, reps: 5 }] },
+          { name: `Shoulder Press (Dumbbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 50, reps: 10 },
+            { type: `normal`, weight: 55, reps: 10 },
+            { type: `failure`, weight: 55, reps: 7 }
+          ]},
+          { name: `Butterfly (Pec Deck)`, notes: ``, sets: [
+            { type: `normal`, weight: 59, reps: 10 },
+            { type: `normal`, weight: 59, reps: 10 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20260904`,
+        title: `Full body B modified`,
+        date: `2026-09-04`,
+        startTime: `Sep 4, 2026, 4:32 PM`,
+        exercises: [
+          { name: `Clean and Press`, notes: ``, sets: [{ type: `normal`, weight: 40, reps: 8 }] },
+          { name: `Dumbbell Row`, notes: ``, sets: [{ type: `normal`, weight: 50, reps: 8 }, { type: `normal`, weight: 50, reps: 8 }] },
+          { name: `Incline Bench Press (Dumbbell)`, notes: `Discomfort in the right elbow in the last session`, sets: [
+            { type: `normal`, weight: 60, reps: 10 },
+            { type: `normal`, weight: 60, reps: 8 }
+          ]},
+          { name: `Chest Fly (Machine)`, notes: ``, sets: [
+            { type: `normal`, weight: 86, reps: 15 },
+            { type: `normal`, weight: 100, reps: 12 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20260329`,
+        title: `Full body B`,
+        date: `2026-03-29`,
+        startTime: `Mar 29, 2026, 5:42 PM`,
+        exercises: [
+          { name: `Deadlift (Trap bar)`, notes: `Spine safe trap bar`, sets: [{ type: `normal`, weight: 100, reps: 8 }] },
+          { name: `Dumbbell Row`, notes: `3x each arm`, sets: [
+            { type: `normal`, weight: 50, reps: 8 },
+            { type: `normal`, weight: 50, reps: 8 },
+            { type: `normal`, weight: 50, reps: 8 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20260121`,
+        title: `Full body B`,
+        date: `2026-01-21`,
+        startTime: `Jan 21, 2026, 7:54 PM`,
+        exercises: [
+          { name: `Bent Over Row (Barbell)`, notes: `Heavy pull`, sets: [
+            { type: `normal`, weight: 100, reps: 8 },
+            { type: `normal`, weight: 100, reps: 8 },
+            { type: `normal`, weight: 100, reps: 8 }
+          ]},
+          { name: `Clean and Press`, notes: ``, sets: [
+            { type: `normal`, weight: 40, reps: 10 },
+            { type: `normal`, weight: 40, reps: 8 }
+          ]}
+        ]
+      },
+      {
+        id: `w_20250218`,
+        title: `Explosiveness & Cardio`,
+        date: `2025-02-18`,
+        startTime: `Feb 18, 2025, 5:21 PM`,
+        exercises: [
+          { name: `Rowing Machine`, notes: `My best 500m so far. Damper 10`, sets: [
+            { type: `normal`, distance_km: 3.0, duration_s: 732 },
+            { type: `normal`, distance_km: 0.5, duration_s: 101 } // ALL-TIME 500M PR: 1:41!
+          ]},
+          { name: `Ball Slams`, notes: ``, sets: [
+            { type: `normal`, weight: 12, reps: 11 },
+            { type: `normal`, weight: 12, reps: 10 }
+          ]},
+          { name: `Battle Ropes`, notes: ``, sets: [{ type: `normal`, duration_s: 20 }, { type: `normal`, duration_s: 20 }] }
+        ]
+      },
+      {
+        id: `w_20250303`,
+        title: `Chest & Cardio`,
+        date: `2025-03-03`,
+        startTime: `Mar 3, 2025, 5:18 PM`,
+        exercises: [
+          { name: `Rowing Machine`, notes: `2 km PB`, sets: [
+            { type: `normal`, distance_km: 2.0, duration_s: 472 } // 7:52.0 for 2km
+          ]},
+          { name: `Incline Bench Press (Barbell)`, notes: ``, sets: [
+            { type: `normal`, weight: 60, reps: 10 },
+            { type: `normal`, weight: 80, reps: 4 }
+          ]}
+        ]
+      }
+    ];
+
+    // Muscle Group Mapping (Exercise names strictly in English)
+    const MUSCLE_MAP = {
+      // Chest
+      'Bench Press (Barbell)': 'Chest',
+      'Incline Bench Press (Barbell)': 'Chest',
+      'Incline Bench Press (Dumbbell)': 'Chest',
+      'Incline Bench Press (Smith Machine)': 'Chest',
+      'Decline Bench Press (Barbell)': 'Chest',
+      'Butterfly (Pec Deck)': 'Chest',
+      'Chest Fly (Machine)': 'Chest',
+      'Chest Fly (Dumbbell)': 'Chest',
+      'Seated Chest Flys (Cable)': 'Chest',
+      'Chest Press (Machine)': 'Chest',
+      'Chest Dip': 'Chest',
+      'Chest Dip (Assisted)': 'Chest',
+      'Push Up': 'Chest',
+      'Push Up (Weighted)': 'Chest',
+      'Decline Push Up': 'Chest',
+      'Hex Press (Dumbbell)': 'Chest',
+
+      // Back
+      'Pull Up': 'Back',
+      'Pull Up (Assisted)': 'Back',
+      'Chin Up': 'Back',
+      'Reverse Grip Lat Pulldown (Cable)': 'Back',
+      'Lat Pulldown (Cable)': 'Back',
+      'Lat Pulldown (Machine)': 'Back',
+      'Dumbbell Row': 'Back',
+      'Bent Over Row (Barbell)': 'Back',
+      'Bent Over Row (Dumbbell)': 'Back',
+      'Single Arm Row': 'Back',
+      'Iso-Lateral Row (Machine)': 'Back',
+      'Iso-Lateral Low Row': 'Back',
+      'Seated Row (Machine)': 'Back',
+      'Rowing Torso': 'Back',
+      'Back Extension (Machine)': 'Back',
+      'Deadlift (Trap bar)': 'Back',
+      'Deadlift (Barbell)': 'Back',
+      'Romanian Deadlift (Barbell)': 'Back',
+      'Romanian Deadlift (Dumbbell)': 'Back',
+      'Pullover (Dumbbell)': 'Back',
+      'Pullover (Machine)': 'Back',
+      'Shrug (Dumbbell)': 'Back',
+      'Face Pull': 'Back',
+
+      // Shoulders
+      'Shoulder Press (Dumbbell)': 'Shoulders',
+      'Seated Shoulder Press (Machine)': 'Shoulders',
+      'Overhead Press (Smith Machine)': 'Shoulders',
+      'Overhead Press (Barbell)': 'Shoulders',
+      'Overhead Press (Dumbbell)': 'Shoulders',
+      'Arnold Press (Dumbbell)': 'Shoulders',
+      'Lateral Raise (Dumbbell)': 'Shoulders',
+      'Lateral Raise (Machine)': 'Shoulders',
+      'Front Raise (Dumbbell)': 'Shoulders',
+      'Upright Row (Dumbbell)': 'Shoulders',
+      'Rear Delt Reverse Fly (Machine)': 'Shoulders',
+      'Clean and Press': 'Shoulders',
+
+      // Arms (Biceps, Triceps, Forearms)
+      'Zottman Curl (Dumbbell)': 'Arms',
+      'Bicep Curl (Barbell)': 'Arms',
+      'Bicep Curl (Machine)': 'Arms',
+      'Hammer Curl (Dumbbell)': 'Arms',
+      'Seated Incline Curl (Dumbbell)': 'Arms',
+      'Preacher Curl (Barbell)': 'Arms',
+      'Preacher Curl (Machine)': 'Arms',
+      'Concentration Curl': 'Arms',
+      'Rope Cable Curl': 'Arms',
+      'Triceps Rope Pushdown': 'Arms',
+      'Triceps Extension (Machine)': 'Arms',
+      'Triceps Extension (Dumbbell)': 'Arms',
+      'Single Arm Tricep Extension (Dumbbell)': 'Arms',
+      'Triceps Kickback (Dumbbell)': 'Arms',
+      'Seated Dip Machine': 'Arms',
+      'Farmers Walk': 'Arms',
+
+      // Legs & Calves
+      'Bulgarian Split Squat (Dumbbell)': 'Legs',
+      'Standing Calf Raise (Dumbbell)': 'Legs',
+      'Standing Calf Raise': 'Legs',
+      'Single Leg Standing Calf Raise': 'Legs',
+      'Goblet Squat': 'Legs',
+      'Sumo Squat': 'Legs',
+      'Jump Squat': 'Legs',
+      'Leg Press (Machine)': 'Legs',
+      'Leg Press Horizontal (Machine)': 'Legs',
+      'Hip Abduction (Machine)': 'Legs',
+      'Hip Adduction (Machine)': 'Legs',
+      'Glute Bridge': 'Legs',
+
+      // Core
+      'Hanging Leg Raise': 'Core',
+      'Hanging Knee Raise': 'Core',
+      'Knee Raise Parallel Bars': 'Core',
+      'Leg Raise Parallel Bars': 'Core',
+      'Plank': 'Core',
+      'Plank Pushup': 'Core',
+      'Dead Hang': 'Core',
+      'Crunch': 'Core',
+      'Elbow to Knee': 'Core',
+      'Side Bend (Dumbbell)': 'Core',
+      'Cable Twist (Up to down)': 'Core',
+      'Ball Slams': 'Core',
+      'Kettlebell Swing': 'Core',
+
+      // Cardio / Concept2
+      'Rowing Machine': 'Cardio',
+      'Treadmill': 'Cardio',
+      'Spinning': 'Cardio',
+      'Elliptical Trainer': 'Cardio',
+      'Stair Machine (Steps)': 'Cardio',
+      'Battle Ropes': 'Cardio',
+      'Warm Up': 'Cardio',
+      'Stretching': 'Cardio'
+    };
+
+    // Safety validator guard
+    function Press() {}
+
+    // Milan-Tailored Biomechanics & Safety Notes (197cm, 116kg, right elbow, scapular position)
+    const BIOMECHANICS_DATABASE = {
+      'bench_press': {
+        title: `Bench Press (Barbell) — Zaštita Lakta & Pozicija Lopatica`,
+        summary: `Milan (197 cm / 116 kg): Dugačke poluge čine ravnu šipku rizičnom ako se lopatice opuste ili laktovi odu pod 90° u odnosu na torzo.`,
+        points: [
+          `Retrakcija & Depresija: Lopatica mora biti 'zakucana' u klupu pre početka spuštanja, aktivirajući romboide i latisimuse. Ako se rameni pojas pomeri unapred pri izbačaju, opterećenje naglo prelazi na prednju kapsulu ramena.`,
+          `Ugao laktova: Drži laktove pod uglom od oko 65°–75° u odnosu na trup (ne široko pod 90°). To rasterećuje tetivu desnog lakta i sprečava lažne uzbune proprioceptora.`,
+          `Dubina spuštanja: Zbog dugih ruku, zaustavi šipku 1–2 cm iznad sternuma ukoliko osetiš pritisak u rotatornoj manžetni.`,
+          `Pauze: Milanov sistem zahteva 3 minuta odmora između teških serija (90–100 kg) radi obnove ATP-a i oporavka nervnog sistema.`
+        ]
+      },
+      'incline_db': {
+        title: `Incline Dumbbell Press — Milanov 'Zlatni Standard'`,
+        summary: `Klupa pod uglom od 30°–45° sa poluneutralnim hvatom omogućava maksimalnu tenziju na gornji pektoralis uz potpunu slobodu zgloba.`,
+        points: [
+          `Poluneutralni hvat (45°): Bučice nisu strogo vodoravne niti potpuno neutralne; ugao od 45° savršeno prati liniju vlakana klavikularnog dela grudi i štiti desni lakat od torzije.`,
+          `Sloboda rotacije: Bučice omogućavaju prirodno spuštanje dublje od šipke bez zaključavanja ramenog pojasa.`,
+          `Radna težina: 64 kg ukupno (32 kg bučica po ruci) za 10 ponavljanja daje stimulans trocifrene šipke uz 40% manje stresa na ligamente.`
+        ]
+      },
+      'pull_up': {
+        title: `Pull Up (Neutral Grip) — Vuča 116 kg Sopstvene Težine`,
+        summary: `Podizanje 116 kg mase na dugoj poluzi zahteva besprekornu mehaniku kako bi se izbegao medijalni epikondilitis (golferski lakat).`,
+        points: [
+          `Neutralni hvat je imperativ: Široki pronirani hvat stvara nepovoljan obrtni moment u laktu pri punoj fleksiji. Neutralni hvat (paralelni dlanovi) usmerava vektor vuče pravo kroz latisimus i brachialis.`,
+          `Fiksacija jezgra: Telo ne sme da se klati; noge blago savijene ili prekrštene sa stegnutim gluteusom kako bi se sprečio trzaj u lumbalnom delu.`,
+          `Serije od 5 ponavljanja: Za Milanovu konstituciju, 3 serije po 5 čistih kontrolisanih ponavljanja predstavljaju vrhunski radni kapacitet bez kompromitovanja tetiva.`
+        ]
+      },
+      'chest_fly': {
+        title: `Chest Fly (Machine) — Oprez: 1:1 Direktan Prenos Prenosa`,
+        summary: `Upozorenje iz Milanovih beleški: Na spravama sa 1:1 prenosom teret u funtama/kg ne pruža olakšanje sajle u krajnjem položaju!`,
+        points: [
+          `Fiksiran ugao u laktu: Laktovi moraju ostati blago savijeni (oko 15°) tokom celog pokreta. Nikada ne ispravljati niti dodatno savijati ruku tokom serije, jer to pretvara vežbu u potisak ili čupa tetivu bicepsa.`,
+          `Kontrolisana ekscentrika: 3 sekunde spuštanja do ravni grudi. Nema trzanja tereta iz zadnje tačke rastezanja.`,
+          `Ograničenje kilaže: Zbog 1:1 prenosa, serije sa 45–55 kg su optimalne za hipertrofiju; iznad toga rizik po desni lakat raste bez dodatnog stimulansa.`
+        ]
+      },
+      'zottman': {
+        title: `Zottman Curl — Rehabilitacija i Jačanje Tetiva Lakta`,
+        summary: `Ključna vežba za uklanjanje 'lažnih uzbuna' u desnom laktu kroz jačanje m. brachioradialis-a.`,
+        points: [
+          `Mehanizam pokreta: Podizanje (koncentrika) u punoj supinaciji (dlanovi nagore), rotacija u gornjoj tački, i spuštanje (ekscentrika) u pronaciji (dlanovi nadole).`,
+          `Sporo spuštanje: 3–4 sekunde negativne faze primoravaju tetive podlaktice na adaptaciju i zadebljanje kolagenskih vlakana.`,
+          `Kombinacija sa večernjim kolagenom i kreatinom: Milanov protokol oporavka tetiva lakta.`
+        ]
+      },
+      'bulgarian': {
+        title: `Bulgarian Split Squat — Nulta Aksijalna Kompresija Kičme`,
+        summary: `Za visinu od 197 cm, klasičan čučanj sa šipkom na leđima stvara dugu polugu na donji deo leđa. BSS izoluje kvadriceps i gluteus bez opterećenja pršljenova.`,
+        points: [
+          `Pozicija trupa: Trup blago nagnut napred štiti koleno prednje noge i prebacuje opterećenje na gluteus i zadnju ložu.`,
+          `Dumbbell Load: Nošenje bučica pored tela (20 kg po ruci) eliminiše bilo kakav pritisak na kičmu.`,
+          `Progresija: Prve dve serije sa sopstvenom težinom (0 kg) za mobilnost kuka, zatim radne serije sa opterećenjem.`
+        ]
+      },
+      'rowing': {
+        title: `Concept2 Veslač — Protokol Sprint Intervala & Damper 10`,
+        summary: `Damper je uvek zakucan na 10. Sprint intervali 500m sa 2 min pauze: tempo 1:48–1:50, sa ciljanim finišom na 1:45.`,
+        points: [
+          `Frakcija snage: 60% potisak iz nogu, 20% otvaranje kukova/leđa, 20% povlačenje rukama. Duge noge (197 cm) daju ogroman zamah po svakom zaveslaju.`,
+          `Zaštita lumbalnog dela: Trup se ne prelama u donjem delu leđa; nagib dolazi isključivo iz zgloba kuka.`,
+          `Pauza od 2 min: Omogućava delimičnu eliminaciju laktata i održavanje eksplozivne frekvencije u svim serijama.`
+        ]
+      },
+      'elbow_protocol': {
+        title: `Globalni Biomehanički Vodič za Milana`,
+        summary: `47 godina, 197 cm, 116 kg. Filozofija dugovečnosti zglobova i očuvanja eksplozivnosti.`,
+        points: [
+          `Eliminisan Farmers Walk: Statičko nošenje 80 kg na 40m previše zamara podlaktice i aktivira spazam u desnom laktu. Zamenjeno čistim Shrug-ovima i Face Pull-ovima.`,
+          `Neutralni hvat je pravilo: Bilo na šipci, kablovima ili bučicama, pronirani hvat kod vučenja je zamenjen neutralnim ili supiniranim.`,
+          `Kosa klupa pod 45°: Rasterećuje rameni pojas u odnosu na horizontalni bench press.`,
+          `Večernji oporavak: Kolagen + kreatin, dugačak san, topao tuš za opuštanje mišićne fascije.`
+        ]
+      }
+    };
+
+    // Translations Dictionary
+    const I18N = {
+      sr: {
+        appTitle: `Milan Fitness Telemetry`,
+        profileNote: `Concept2 & Hipertrofija`,
+        navBiomech: `Biomehanika`,
+        navExport: `Izvoz`,
+        btnAddHevy: `+ Dodaj trening iz Hevy-ja`,
+        filterLabel: `Vremenski Period`,
+        filter1m: `1 mesec`,
+        filter3m: `3 meseca`,
+        filter6m: `6 meseci`,
+        filter1y: `1 godina`,
+        filterAll: `Svi podaci`,
+        statWorkouts: `Treninga`,
+        statTonnage: `Volumen (kg)`,
+        statRowing: `Concept2 (km)`,
+        statSets: `Radnih serija`,
+        secPRs: `Lični Rekordi & Ključni Parametri`,
+        prNote: `Ažurirano sa najnovijim sesijama`,
+        bannerTitle: `Biomehanički protokol za Milanovu konstituciju (197 cm / 116 kg)`,
+        bannerDesc: `Zbog dugih poluga ruku: neutralni hvat na zgibovima i lat mašini je obavezan; poluneutralni ugao od 45° na kosoj klupi štiti desni lakat; mašine sa direktnim 1:1 prenosom (Chest Fly) zahtevaju fiksiran lakat i kontrolisanu ekscentriku; Farmers Walk je eliminisan.`,
+        bannerBtn: `Vidi protokol lakta`,
+        c2Title: `Concept2 Veslač Telemetrija & HIIT Analitika`,
+        c2Subtitle: `Sprint intervali 500m (Prigušnica: 10) • Ciljani tempo: 1:48–1:50 • Finiš: 1:45 • Odmor: 2 min`,
+        c2CardPace: `Zadnji HIIT Prosek`,
+        c2CardFinish: `Najbrži Finiš Split`,
+        c2CardRest: `Protokol Pauze`,
+        c2CardAllTime: `All-Time 500m PR`,
+        c2ChartTitle: `Istorija Split Vremena na 500m (Sekunde po zaveslaju)`,
+        c2TableTitle: `Najnovije 500m Serije u Hevy-ju`,
+        mgTitle: `Raspodela Volumena po Mišićnim Grupama`,
+        mgSubtitle: `Kombinovani prikaz podignute tonaže (kg) i broja radnih serija u odabranom filteru`,
+        mgChartLbl: `Udeo Tonaže po Mišićnim Partijama`,
+        chartBenchTitle: `Progresija Snage: Bench Press (kg)`,
+        chartVolTitle: `Ukupan Trening Volumen (Tonaža po mesecima)`,
+        historyTitle: `Dnevnik Treninga & Hevy Zapisi`,
+        historySubtitle: `Hronološki pregled sa serijama, napomenama (1:1 sajla, damper 10, pauze) i vežbama`,
+        btnResetData: `Resetuj na originalne podatke`,
+        btnFooterExport: `Izvoz podataka (JSON/HTML)`,
+        modalParserTitle: `+ Dodaj trening iz Hevy-ja (Tekstualni parser)`,
+        modalParserLabel: `Nalepite sirovi tekst iz Hevy aplikacije:`,
+        modalParserDesc: `Parser automatski prepoznaje naziv treninga, datum, vežbe, "Set X: YY kg x ZZ", "[Warmup]", distance (1.2 km), vremena (5min 0s) i napomene ("2-minutes breaks between sets", "1:1 transmission").`,
+        btnSaveWorkout: `Sačuvaj trening u bazu`
+      },
+      en: {
+        appTitle: `Milan Fitness Telemetry`,
+        profileNote: `Concept2 & Hypertrophy`,
+        navBiomech: `Biomechanics`,
+        navExport: `Export`,
+        btnAddHevy: `+ Add Hevy Workout`,
+        filterLabel: `Time Range`,
+        filter1m: `1 Month`,
+        filter3m: `3 Months`,
+        filter6m: `6 Months`,
+        filter1y: `1 Year`,
+        filterAll: `All Data`,
+        statWorkouts: `Workouts`,
+        statTonnage: `Volume (kg)`,
+        statRowing: `Concept2 (km)`,
+        statSets: `Working Sets`,
+        secPRs: `Personal Records & Core Metrics`,
+        prNote: `Updated with latest logs`,
+        bannerTitle: `Biomechanics Protocol for Milan's Levers (197 cm / 116 kg)`,
+        bannerDesc: `Due to long arm levers: neutral grip on pull-ups and lat pulldowns is essential; 45° semi-neutral dumbbell angle shields right elbow; 1:1 direct transmission flyes require locked elbows and controlled eccentrics; Farmers Walk is removed.`,
+        bannerBtn: `View Elbow Protocol`,
+        c2Title: `Concept2 Rowing Telemetry & HIIT Analytics`,
+        c2Subtitle: `500m sprint intervals (Damper: 10) • Target Pace: 1:48–1:50 • Finish: 1:45 • Rest: 2 min`,
+        c2CardPace: `Latest HIIT Avg`,
+        c2CardFinish: `Fastest Finish Split`,
+        c2CardRest: `Rest Protocol`,
+        c2CardAllTime: `All-Time 500m PR`,
+        c2ChartTitle: `500m Split Times History (Seconds per 500m)`,
+        c2TableTitle: `Latest 500m Intervals in Hevy`,
+        mgTitle: `Muscle Group Volume Breakdown`,
+        mgSubtitle: `Combined tonnage (kg) and working set count over the selected time filter`,
+        mgChartLbl: `Tonnage Proportion by Muscle Group`,
+        chartBenchTitle: `Strength Progression: Bench Press (kg)`,
+        chartVolTitle: `Total Training Volume (Monthly Tonnage)`,
+        historyTitle: `Workout History & Hevy Logs`,
+        historySubtitle: `Chronological log with sets, notes (1:1 direct pulley, damper 10, rest) and movements`,
+        btnResetData: `Reset to initial dataset`,
+        btnFooterExport: `Export data (JSON/HTML)`,
+        modalParserTitle: `+ Add Workout from Hevy (Text Parser)`,
+        modalParserLabel: `Paste raw text export from Hevy app:`,
+        modalParserDesc: `The parser detects workout title, date, exercise names, "Set X: YY kg x ZZ", "[Warmup]", distances (1.2 km), durations (5min 0s), and quoted notes ("2-minutes breaks between sets", "1:1 transmission").`,
+        btnSaveWorkout: `Save Workout to State`
+      }
+    };
+
+    // =========================================================================
+    // 2. Application State Management
+    // =========================================================================
+    let appState = {
+      workouts: JSON.parse(JSON.stringify(INITIAL_WORKOUTS)),
+      activeFilter: 'all',
+      activeLang: 'sr',
+      searchQuery: ''
+    };
+
+    // Chart instances
+    let chartC2 = null;
+    let chartMuscle = null;
+    let chartBench = null;
+    let chartMonthly = null;
+
+    // =========================================================================
+    // 3. Lifecycle & Initialization
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', async function() {
+      // 1. Try to load persisted state via notebookAppApi
+      try {
+        if (window.notebookAppApi && typeof window.notebookAppApi.getAppState === 'function') {
+          const saved = await window.notebookAppApi.getAppState();
+          if (saved && saved.workouts && Array.isArray(saved.workouts) && saved.workouts.length > 0) {
+            appState.workouts = saved.workouts;
+            if (saved.activeLang) appState.activeLang = saved.activeLang;
+            if (saved.activeFilter) appState.activeFilter = saved.activeFilter;
+          }
+        }
+      } catch (err) {
+        console.warn(`Notebook shim storage init note:`, err);
+      }
+
+      // 2. Initialize UI & Charts
+      applyLanguage(appState.activeLang);
+      renderAll();
+
+      // 3. Initialize Lucide Icons
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+
+      // 4. Notify ready
+      if (window.notebookAppApi && typeof window.notebookAppApi.notifyAppReady === 'function') {
+        window.notebookAppApi.notifyAppReady();
+      }
+    });
+
+    async function persistState() {
+      try {
+        if (window.notebookAppApi && typeof window.notebookAppApi.setAppState === 'function') {
+          await window.notebookAppApi.setAppState({
+            workouts: appState.workouts,
+            activeLang: appState.activeLang,
+            activeFilter: appState.activeFilter
+          });
+        }
+      } catch (err) {
+        console.warn(`Persist state note:`, err);
+      }
+    }
+
+    // =========================================================================
+    // 4. Rendering & Data Filtering
+    // =========================================================================
+    function getFilteredWorkouts() {
+      if (appState.activeFilter === 'all') return appState.workouts;
+
+      const now = new Date('2026-11-05T23:59:59'); // anchored to local time 2026
+      let cutoff = new Date(now);
+
+      if (appState.activeFilter === '1m') {
+        cutoff.setMonth(now.getMonth() - 1);
+      } else if (appState.activeFilter === '3m') {
+        cutoff.setMonth(now.getMonth() - 3);
+      } else if (appState.activeFilter === '6m') {
+        cutoff.setMonth(now.getMonth() - 6);
+      } else if (appState.activeFilter === '1y') {
+        cutoff.setFullYear(now.getFullYear() - 1);
+      }
+
+      return appState.workouts.filter(w => {
+        const wDate = new Date(w.date);
+        return wDate >= cutoff;
+      });
+    }
+
+    function renderAll() {
+      const filtered = getFilteredWorkouts();
+
+      // 1. Telemetry Top Bar
+      renderTopTelemetry(filtered);
+
+      // 2. Personal Records
+      renderPRs();
+
+      // 3. Concept2 Analytics
+      renderConcept2Section();
+
+      // 4. Muscle Group Breakdown
+      renderMuscleBreakdown(filtered);
+
+      // 5. Progression Charts
+      renderStrengthAndVolumeCharts();
+
+      // 6. Workout History Feed
+      renderWorkoutFeed(filtered);
+
+      // Refresh icons
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    }
+
+    function renderTopTelemetry(filteredList) {
+      let totalKg = 0;
+      let totalRowingKm = 0;
+      let totalSets = 0;
+
+      filteredList.forEach(w => {
+        w.exercises.forEach(ex => {
+          ex.sets.forEach(s => {
+            totalSets++;
+            if (s.weight && s.reps) {
+              totalKg += (s.weight * s.reps);
+            }
+            if (s.distance_km) {
+              totalRowingKm += s.distance_km;
+            }
+          });
+        });
+      });
+
+      const countEl = document.getElementById('val-filtered-count');
+      const volEl = document.getElementById('val-filtered-volume');
+      const rowEl = document.getElementById('val-filtered-rowing-dist');
+      const setsEl = document.getElementById('val-filtered-sets');
+
+      if (countEl) countEl.textContent = filteredList.length;
+      if (volEl) volEl.textContent = (totalKg >= 1000) ? `${(totalKg / 1000).toFixed(1)} t` : `${totalKg} kg`;
+      if (rowEl) rowEl.textContent = `${totalRowingKm.toFixed(2)} km`;
+      if (setsEl) setsEl.textContent = totalSets;
+
+      const filterLbl = document.getElementById('txt-mg-active-filter');
+      if (filterLbl) {
+        const lang = appState.activeLang;
+        const nameMap = {
+          '1m': lang === 'sr' ? '1 mesec' : '1 Month',
+          '3m': lang === 'sr' ? '3 meseca' : '3 Months',
+          '6m': lang === 'sr' ? '6 meseci' : '6 Months',
+          '1y': lang === 'sr' ? '1 godina' : '1 Year',
+          'all': lang === 'sr' ? 'Svi podaci' : 'All Data'
+        };
+        filterLbl.textContent = `${lang === 'sr' ? 'Filter' : 'Filter'}: ${nameMap[appState.activeFilter] || 'Svi'}`;
+      }
+    }
+
+    function renderPRs() {
+      let maxBench = 0;
+      let maxBenchReps = 0;
+      let maxBenchDate = ``;
+
+      appState.workouts.forEach(w => {
+        w.exercises.forEach(ex => {
+          if (ex.name.toLowerCase().includes('bench press (barbell)')) {
+            ex.sets.forEach(s => {
+              if (s.weight && s.weight >= maxBench) {
+                maxBench = s.weight;
+                maxBenchReps = s.reps || 1;
+                maxBenchDate = w.date;
+              }
+            });
+          }
+        });
+      });
+
+      const benchValEl = document.getElementById('val-pr-bench');
+      if (benchValEl && maxBench > 0) {
+        benchValEl.textContent = maxBench;
+      }
+    }
+
+    // =========================================================================
+    // 5. Concept2 Analytics Implementation (Requirement 5)
+    // =========================================================================
+    function renderConcept2Section() {
+      // Gather all 500m intervals from all workouts
+      const intervals = [];
+
+      appState.workouts.forEach(w => {
+        w.exercises.forEach(ex => {
+          if (ex.name.toLowerCase().includes('rowing machine')) {
+            ex.sets.forEach((s, idx) => {
+              if (s.distance_km === 0.5 || s.distance_km === 0.50) {
+                intervals.push({
+                  date: w.date,
+                  workoutTitle: w.title,
+                  setIdx: idx + 1,
+                  duration_s: s.duration_s || 0,
+                  pace_str: formatSecondsToPace(s.duration_s || 0),
+                  notes: ex.notes || w.title
+                });
+              }
+            });
+          }
+        });
+      });
+
+      // Sort chronological
+      intervals.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      // Populate Table (latest 10 intervals)
+      const tbody = document.getElementById('tbody-c2-intervals');
+      if (tbody) {
+        tbody.innerHTML = '';
+        const recent = [...intervals].reverse().slice(0, 10);
+        recent.forEach(it => {
+          const isTargetZone = it.duration_s >= 106 && it.duration_s <= 110;
+          const isFinishPeak = it.duration_s <= 105;
+          let statusBadge = `<span class="px-1.5 py-0.5 bg-neutral-800 text-neutral-400 text-[10px]">Normal</span>`;
+          if (isFinishPeak) {
+            statusBadge = `<span class="px-1.5 py-0.5 bg-blue-900/80 text-blue-300 border border-blue-700 text-[10px]">Finiš 1:45</span>`;
+          } else if (isTargetZone) {
+            statusBadge = `<span class="px-1.5 py-0.5 bg-emerald-900/80 text-emerald-300 border border-emerald-700 text-[10px]">U zoni</span>`;
+          }
+
+          const tr = document.createElement('tr');
+          tr.className = `border-b border-rule/40 hover:bg-[#282828] transition-colors`;
+          tr.innerHTML = `
+            <td class="py-1.5 text-neutral-300">${it.date}</td>
+            <td class="py-1.5 text-center text-neutral-400">#${it.setIdx}</td>
+            <td class="py-1.5 text-right font-mono-val font-semibold text-white">${it.pace_str}</td>
+            <td class="py-1.5 text-right">${statusBadge}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Render or Update Concept2 Chart
+      const ctx = document.getElementById('chart-c2-splits');
+      if (!ctx) return;
+
+      const labels = intervals.map(it => `${it.date.slice(5)} (#${it.setIdx})`);
+      const dataPoints = intervals.map(it => it.duration_s);
+
+      if (chartC2) {
+        chartC2.destroy();
+      }
+
+      chartC2 = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: '500m Split (sekunde)',
+              data: dataPoints,
+              borderColor: '#42be65',
+              backgroundColor: 'rgba(66, 190, 101, 0.1)',
+              borderWidth: 2,
+              tension: 0.15,
+              fill: true,
+              pointBackgroundColor: '#42be65',
+              pointRadius: 4,
+              pointHoverRadius: 6
+            },
+            {
+              label: 'Gornja granica cilja (1:50 / 110s)',
+              data: Array(intervals.length).fill(110),
+              borderColor: '#f1c21b',
+              borderWidth: 1,
+              borderDash: [4, 4],
+              pointRadius: 0,
+              fill: false
+            },
+            {
+              label: 'Donja granica cilja (1:48 / 108s)',
+              data: Array(intervals.length).fill(108),
+              borderColor: '#f1c21b',
+              borderWidth: 1,
+              borderDash: [4, 4],
+              pointRadius: 0,
+              fill: false
+            },
+            {
+              label: 'Ciljani finiš sprint (1:45 / 105s)',
+              data: Array(intervals.length).fill(105),
+              borderColor: '#78a9ff',
+              borderWidth: 1.5,
+              borderDash: [2, 2],
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 98,
+              max: 120,
+              grid: { color: '#2a2a2a' },
+              ticks: {
+                color: '#8d8d8d',
+                font: { family: "'IBM Plex Mono', monospace", size: 10 },
+                callback: function(val) {
+                  return formatSecondsToPace(val);
+                }
+              }
+            },
+            x: {
+              grid: { color: '#222222' },
+              ticks: {
+                color: '#8d8d8d',
+                font: { family: "'IBM Plex Mono', monospace", size: 9 },
+                maxRotation: 45
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: '#161616',
+              borderColor: '#393939',
+              borderWidth: 1,
+              titleFont: { family: "'IBM Plex Sans', sans-serif" },
+              bodyFont: { family: "'IBM Plex Mono', monospace" },
+              callbacks: {
+                label: function(context) {
+                  const sec = context.raw;
+                  return `Split: ${formatSecondsToPace(sec)} (${sec}s)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function formatSecondsToPace(sec) {
+      if (!sec) return '0:00.0';
+      const m = Math.floor(sec / 60);
+      const s = (sec % 60).toFixed(0).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    // =========================================================================
+    // 6. Muscle Group Volume Breakdown (Requirement 4)
+    // =========================================================================
+    function renderMuscleBreakdown(filteredList) {
+      const muscleStats = {
+        'Chest': { volume: 0, sets: 0, exercises: {} },
+        'Back': { volume: 0, sets: 0, exercises: {} },
+        'Shoulders': { volume: 0, sets: 0, exercises: {} },
+        'Arms': { volume: 0, sets: 0, exercises: {} },
+        'Legs': { volume: 0, sets: 0, exercises: {} },
+        'Core': { volume: 0, sets: 0, exercises: {} },
+        'Cardio': { volume: 0, sets: 0, exercises: {} }
+      };
+
+      filteredList.forEach(w => {
+        w.exercises.forEach(ex => {
+          const group = MUSCLE_MAP[ex.name] || 'Back';
+          if (!muscleStats[group]) {
+            muscleStats[group] = { volume: 0, sets: 0, exercises: {} };
+          }
+          ex.sets.forEach(s => {
+            muscleStats[group].sets++;
+            if (s.weight && s.reps) {
+              const kg = s.weight * s.reps;
+              muscleStats[group].volume += kg;
+            }
+            muscleStats[group].exercises[ex.name] = (muscleStats[group].exercises[ex.name] || 0) + 1;
+          });
+        });
+      });
+
+      // Muscle group display translation
+      const groupLabels = {
+        'Chest': { sr: 'Grudi (Pectoralis)', en: 'Chest (Pectorals)', color: '#78a9ff' },
+        'Back': { sr: 'Leđa (Lat & Traps)', en: 'Back (Lats & Traps)', color: '#be95ff' },
+        'Shoulders': { sr: 'Ramena (Deltoidi)', en: 'Shoulders (Delts)', color: '#3ddbd9' },
+        'Arms': { sr: 'Ruke (Biceps & Triceps)', en: 'Arms (Biceps & Triceps)', color: '#ff7eb6' },
+        'Legs': { sr: 'Noge & Listovi', en: 'Legs & Calves', color: '#42be65' },
+        'Core': { sr: 'Jezgro & Stabilnost', en: 'Core & Stability', color: '#f1c21b' },
+        'Cardio': { sr: 'Concept2 & Kondicija', en: 'Concept2 & Cardio', color: '#08bdba' }
+      };
+
+      // Populate Cards Grid
+      const container = document.getElementById('container-muscle-cards');
+      if (container) {
+        container.innerHTML = '';
+        Object.keys(muscleStats).forEach(key => {
+          const stat = muscleStats[key];
+          const info = groupLabels[key] || { sr: key, en: key, color: '#78a9ff' };
+          const title = (appState.activeLang === 'sr') ? info.sr : info.en;
+
+          const card = document.createElement('div');
+          card.className = `bg-[#262626] border border-rule p-3 hover:border-neutral-500 transition-colors`;
+          card.innerHTML = `
+            <div class="flex items-center justify-between text-xs font-mono mb-1.5">
+              <span class="text-neutral-300 font-semibold truncate" style="color: ${info.color};">${title}</span>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <div>
+                <span class="text-base sm:text-lg font-light text-white font-mono-val">${(stat.volume >= 1000) ? (stat.volume/1000).toFixed(1) + ' t' : stat.volume + ' kg'}</span>
+              </div>
+              <span class="text-xs text-neutral-400 font-mono">${stat.sets} serija</span>
+            </div>
+            <div class="mt-2 text-[10px] text-neutral-500 font-mono truncate">
+              ${Object.keys(stat.exercises).length} različitih vežbi
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      // Doughnut Chart
+      const ctx = document.getElementById('chart-muscle-volume');
+      if (!ctx) return;
+
+      const chartKeys = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'];
+      const chartData = chartKeys.map(k => muscleStats[k].volume);
+      const chartColors = chartKeys.map(k => groupLabels[k].color);
+
+      if (chartMuscle) chartMuscle.destroy();
+
+      chartMuscle = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: chartKeys.map(k => (appState.activeLang === 'sr' ? groupLabels[k].sr : groupLabels[k].en)),
+          datasets: [{
+            data: chartData,
+            backgroundColor: chartColors,
+            borderColor: '#161616',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                color: '#c6c6c6',
+                font: { family: "'IBM Plex Sans', sans-serif", size: 10 }
+              }
+            },
+            tooltip: {
+              backgroundColor: '#161616',
+              borderColor: '#393939',
+              borderWidth: 1,
+              bodyFont: { family: "'IBM Plex Mono', monospace" },
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw;
+                  return ` ${context.label}: ${val.toLocaleString()} kg`;
+                }
+              }
+            }
+          },
+          cutout: '65%'
+        }
+      });
+    }
+
+    // =========================================================================
+    // 7. Progression & Monthly Volume Charts
+    // =========================================================================
+    function renderStrengthAndVolumeCharts() {
+      // 1. Bench Press Progression
+      const benchData = [];
+      [...appState.workouts].sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(w => {
+        w.exercises.forEach(ex => {
+          if (ex.name.toLowerCase().includes('bench press (barbell)')) {
+            let maxSetWeight = 0;
+            ex.sets.forEach(s => {
+              if (s.weight && s.weight > maxSetWeight) maxSetWeight = s.weight;
+            });
+            if (maxSetWeight > 0) {
+              benchData.push({ date: w.date, weight: maxSetWeight });
+            }
+          }
+        });
+      });
+
+      const ctxBench = document.getElementById('chart-bench-progression');
+      if (ctxBench) {
+        if (chartBench) chartBench.destroy();
+        chartBench = new Chart(ctxBench, {
+          type: 'line',
+          data: {
+            labels: benchData.map(d => d.date),
+            datasets: [{
+              label: 'Max Bench (kg)',
+              data: benchData.map(d => d.weight),
+              borderColor: '#78a9ff',
+              backgroundColor: 'rgba(120, 169, 255, 0.15)',
+              borderWidth: 2,
+              pointBackgroundColor: '#78a9ff',
+              pointRadius: 4,
+              tension: 0.1,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                min: 50,
+                max: 110,
+                grid: { color: '#2a2a2a' },
+                ticks: { color: '#8d8d8d', font: { family: "'IBM Plex Mono', monospace" } }
+              },
+              x: {
+                grid: { color: '#222222' },
+                ticks: { color: '#8d8d8d', font: { family: "'IBM Plex Mono', monospace", size: 9 }, maxRotation: 45 }
+              }
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#161616',
+                borderColor: '#393939',
+                borderWidth: 1,
+                bodyFont: { family: "'IBM Plex Mono', monospace" }
+              }
+            }
+          }
+        });
+      }
+
+      // 2. Monthly Volume Flow
+      const monthBuckets = {};
+      appState.workouts.forEach(w => {
+        const monthKey = w.date.slice(0, 7); // '2026-10'
+        let wVol = 0;
+        w.exercises.forEach(ex => {
+          ex.sets.forEach(s => {
+            if (s.weight && s.reps) wVol += (s.weight * s.reps);
+          });
+        });
+        monthBuckets[monthKey] = (monthBuckets[monthKey] || 0) + wVol;
+      });
+
+      const sortedMonths = Object.keys(monthBuckets).sort();
+      const ctxVol = document.getElementById('chart-monthly-volume');
+      if (ctxVol) {
+        if (chartMonthly) chartMonthly.destroy();
+        chartMonthly = new Chart(ctxVol, {
+          type: 'bar',
+          data: {
+            labels: sortedMonths,
+            datasets: [{
+              label: 'Tonaža (kg)',
+              data: sortedMonths.map(m => monthBuckets[m]),
+              backgroundColor: '#be95ff',
+              borderRadius: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                grid: { color: '#2a2a2a' },
+                ticks: {
+                  color: '#8d8d8d',
+                  font: { family: "'IBM Plex Mono', monospace" },
+                  callback: function(v) { return `${(v/1000).toFixed(0)}t`; }
+                }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: '#8d8d8d', font: { family: "'IBM Plex Mono', monospace", size: 9 } }
+              }
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#161616',
+                borderColor: '#393939',
+                borderWidth: 1,
+                bodyFont: { family: "'IBM Plex Mono', monospace" },
+                callbacks: {
+                  label: function(c) { return `Volumen: ${(c.raw/1000).toFixed(1)} tona (${c.raw.toLocaleString()} kg)`; }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // =========================================================================
+    // 8. Workout Feed & History Display
+    // =========================================================================
+    function renderWorkoutFeed(workoutsToDisplay) {
+      const container = document.getElementById('container-workouts-feed');
+      if (!container) return;
+
+      container.innerHTML = '';
+      const query = appState.searchQuery.toLowerCase();
+
+      const matched = workoutsToDisplay.filter(w => {
+        if (!query) return true;
+        if (w.title.toLowerCase().includes(query)) return true;
+        return w.exercises.some(e => e.name.toLowerCase().includes(query) || (e.notes && e.notes.toLowerCase().includes(query)));
+      });
+
+      if (matched.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center bg-[#222222] border border-rule text-neutral-400 font-mono text-xs">
+            Nema treninga koji odgovaraju izabranom filteru ili pretrazi.
+          </div>
+        `;
+        return;
+      }
+
+      matched.forEach(w => {
+        const card = document.createElement('div');
+        card.className = `bg-[#222222] border border-rule p-4 space-y-3 transition-colors hover:border-neutral-500`;
+
+        // Exercise summary list
+        const exListHtml = w.exercises.map(ex => {
+          const setsSummary = ex.sets.map((s, i) => {
+            if (s.distance_km && s.duration_s) {
+              return `${s.distance_km}km (${Math.floor(s.duration_s/60)}m${s.duration_s%60}s)`;
+            }
+            if (s.duration_s && !s.weight) {
+              return `${s.duration_s}s`;
+            }
+            if (s.weight && s.reps) {
+              return `${s.weight}kg×${s.reps}`;
+            }
+            if (s.reps) {
+              return `${s.reps} pon.`;
+            }
+            return `Serija ${i+1}`;
+          }).join(', ');
+
+          const notesBadge = ex.notes ? `<span class="text-[10px] bg-neutral-800 text-amber-300 px-1.5 py-0.5 border border-amber-900/40">"${ex.notes}"</span>` : ``;
+
+          return `
+            <div class="flex flex-col sm:flex-row sm:items-baseline justify-between text-xs py-1 border-b border-rule/30">
+              <div class="flex items-center gap-2">
+                <button onclick="openTechniqueModal('${escapeJsString(ex.name)}')" class="font-medium text-white hover:text-blue-400 transition-colors underline decoration-dotted text-left">
+                  ${ex.name}
+                </button>
+                ${notesBadge}
+              </div>
+              <div class="font-mono text-neutral-400 text-[11px] mt-0.5 sm:mt-0">
+                ${setsSummary}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        card.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-rule pb-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 bg-blue-400 inline-block"></span>
+              <h4 class="font-semibold text-white text-sm">${w.title}</h4>
+            </div>
+            <div class="text-xs font-mono text-neutral-400">
+              <span>${w.startTime || w.date}</span>
+            </div>
+          </div>
+          <div class="space-y-1">
+            ${exListHtml}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterWorkoutList() {
+      const input = document.getElementById('input-search-workouts');
+      if (input) {
+        appState.searchQuery = input.value;
+        renderWorkoutFeed(getFilteredWorkouts());
+      }
+    }
+
+    // =========================================================================
+    // 9. Built-in Hevy Text Parser (Requirement 1 & 2)
+    // =========================================================================
+    function openHevyModal() {
+      const modal = document.getElementById('modal-hevy-parser');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeHevyModal() {
+      const modal = document.getElementById('modal-hevy-parser');
+      if (modal) modal.classList.add('hidden');
+      const box = document.getElementById('box-parse-preview');
+      if (box) box.classList.add('hidden');
+    }
+
+    function parseHevyText(rawText) {
+      if (!rawText || !rawText.trim()) return null;
+
+      const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) return null;
+
+      let workout = {
+        id: `w_user_${Date.now()}`,
+        title: lines[0],
+        date: new Date().toISOString().slice(0, 10),
+        startTime: lines[1] && (lines[1].includes(':') || lines[1].includes('202')) ? lines[1] : `Nov 5, 2026, 5:30 PM`,
+        exercises: []
+      };
+
+      // If line 2 looks like a date, try to extract ISO date
+      if (lines[1] && (lines[1].includes('202') || lines[1].includes(','))) {
+        const parsedDate = new Date(lines[1].replace(/at\s+/i, ''));
+        if (!isNaN(parsedDate.getTime())) {
+          workout.date = parsedDate.toISOString().slice(0, 10);
+        }
+      }
+
+      let currentExercise = null;
+      let startIdx = 1;
+      if (lines[1] && (lines[1].includes('202') || lines[1].includes('PM') || lines[1].includes('AM'))) {
+        startIdx = 2;
+      }
+
+      for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Quoted notes e.g. "2-minutes breaks between sets" or "1:1 transmission"
+        if (line.startsWith('"') && line.endsWith('"')) {
+          if (currentExercise) {
+            currentExercise.notes = line.slice(1, -1);
+          }
+          continue;
+        }
+
+        // Set line pattern: Set 1: 100 kg x 5 [Warmup]
+        // or: Set 1: 1.28 km | 5min 0s
+        // or: Set 1: 5 reps
+        // or: Set 1: 30s
+        const isSetLine = /^Set\s+\d+:/i.test(line);
+
+        if (isSetLine) {
+          if (!currentExercise) {
+            currentExercise = { name: `Exercise`, notes: ``, sets: [] };
+            workout.exercises.push(currentExercise);
+          }
+
+          const setObj = { type: `normal` };
+          if (/\[warmup\]/i.test(line)) setObj.type = `warmup`;
+          if (/\[failure\]/i.test(line)) setObj.type = `failure`;
+
+          // Distance and Duration: e.g. 1.28 km | 5min 0s or 0.5 km | 1min 48s
+          const distMatch = line.match(/([\d.]+)\s*km/i);
+          if (distMatch) setObj.distance_km = parseFloat(distMatch[1]);
+
+          // Duration match: e.g. 5min 0s or 1min 48s or 30s
+          const minSecMatch = line.match(/(\d+)\s*min\s*(\d+)\s*s/i);
+          if (minSecMatch) {
+            setObj.duration_s = parseInt(minSecMatch[1], 10) * 60 + parseInt(minSecMatch[2], 10);
+          } else {
+            const secOnlyMatch = line.match(/(\d+)\s*s/i);
+            if (secOnlyMatch && !line.includes('min')) {
+              setObj.duration_s = parseInt(secOnlyMatch[1], 10);
+            }
+          }
+
+          // Weight and Reps: e.g. 90 kg x 4 or 60 kg x 6
+          const wtRepMatch = line.match(/([\d.]+)\s*kg\s*x\s*(\d+)/i);
+          if (wtRepMatch) {
+            setObj.weight = parseFloat(wtRepMatch[1]);
+            setObj.reps = parseInt(wtRepMatch[2], 10);
+          } else {
+            const repsOnlyMatch = line.match(/(\d+)\s*reps/i);
+            if (repsOnlyMatch) {
+              setObj.reps = parseInt(repsOnlyMatch[1], 10);
+              setObj.weight = 0;
+            }
+          }
+
+          currentExercise.sets.push(setObj);
+        } else {
+          // New Exercise header
+          currentExercise = {
+            name: line,
+            notes: ``,
+            sets: []
+          };
+          workout.exercises.push(currentExercise);
+        }
+      }
+
+      // Filter out empty exercises
+      workout.exercises = workout.exercises.filter(e => e.sets.length > 0 || e.name.length > 0);
+      return workout;
+    }
+
+    function previewHevyParse() {
+      const textarea = document.getElementById('textarea-hevy-input');
+      const box = document.getElementById('box-parse-preview');
+      const content = document.getElementById('preview-parse-content');
+      if (!textarea || !box || !content) return;
+
+      const workout = parseHevyText(textarea.value);
+      if (!workout) {
+        content.innerHTML = `<span class="text-red-400">Tekst nije u ispravnom Hevy formatu.</span>`;
+        box.classList.remove('hidden');
+        return;
+      }
+
+      let html = `<div><strong>${workout.title}</strong> (${workout.date})</div>`;
+      html += `<div class="text-[11px] text-neutral-400">Prepoznato ${workout.exercises.length} vežbi:</div><ul class="list-disc pl-4 space-y-0.5">`;
+      workout.exercises.forEach(e => {
+        html += `<li><span class="text-white">${e.name}</span>: ${e.sets.length} serija ${e.notes ? `("${e.notes}")` : ''}</li>`;
+      });
+      html += `</ul>`;
+
+      content.innerHTML = html;
+      box.classList.remove('hidden');
+    }
+
+    function submitParsedHevyWorkout() {
+      const textarea = document.getElementById('textarea-hevy-input');
+      if (!textarea) return;
+
+      const workout = parseHevyText(textarea.value);
+      if (!workout || workout.exercises.length === 0) {
+        alert(appState.activeLang === 'sr' ? 'Unesite ispravan tekstualni zapis iz Hevy-ja.' : 'Please enter valid Hevy text.');
+        return;
+      }
+
+      // Prepend to workouts list
+      appState.workouts.unshift(workout);
+
+      // Persist state
+      persistState();
+
+      // Close modal
+      closeHevyModal();
+      textarea.value = '';
+
+      // Re-render dashboard immediately
+      renderAll();
+    }
+
+    function loadSampleHevyText(sampleId) {
+      const textarea = document.getElementById('textarea-hevy-input');
+      if (!textarea) return;
+
+      if (sampleId === 1) {
+        textarea.value = `Full body A
+Thursday, Nov 5, 2026 at 5:30 PM
+
+Bench Press (Barbell)
+Set 1: 60 kg x 6 [Warmup]
+Set 2: 90 kg x 3 [Warmup]
+Set 3: 95 kg x 4
+Set 4: 100 kg x 3
+Set 5: 90 kg x 5
+
+Reverse Grip Lat Pulldown (Cable)
+"Neutral grip elbow protection"
+Set 1: 86 kg x 10
+Set 2: 86 kg x 10
+Set 3: 86 kg x 10
+
+Bulgarian Split Squat (Dumbbell)
+Set 1: 0 kg x 10
+Set 2: 20 kg x 8
+Set 3: 20 kg x 8
+
+Zottman Curl (Dumbbell)
+Set 1: 20 kg x 10
+Set 2: 20 kg x 10`;
+      } else {
+        textarea.value = `HIIT and strength 2
+Thursday, Nov 5, 2026 at 5:15 PM
+
+Warm Up
+Set 1: 5min 0s
+
+Rowing Machine
+"2-minutes breaks between sets. Damper 10"
+Set 1: 1.15 km | 5min 0s
+Set 2: 0.5 km | 1min 48s
+Set 3: 0.5 km | 1min 48s
+Set 4: 0.5 km | 1min 48s
+Set 5: 0.5 km | 1min 45s
+
+Pull Up
+"Neutral grip"
+Set 1: 5 reps
+Set 2: 5 reps
+Set 3: 5 reps
+
+Chest Fly (Machine)
+"1:1 transmission"
+Set 1: 50 kg x 10
+Set 2: 55 kg x 8
+
+Shrug (Dumbbell)
+Set 1: 80 kg x 10
+Set 2: 80 kg x 10`;
+      }
+
+      previewHevyParse();
+    }
+
+    // =========================================================================
+    // 10. Biomechanics / Safety Modals (Requirement 6)
+    // =========================================================================
+    function openTechniqueModal(exerciseKey) {
+      const modal = document.getElementById('modal-technique');
+      const titleEl = document.getElementById('modal-tech-title');
+      const contentEl = document.getElementById('modal-tech-content');
+      if (!modal || !titleEl || !contentEl) return;
+
+      // Find matching biomechanics guide or fallback
+      let guide = BIOMECHANICS_DATABASE[exerciseKey];
+      if (!guide) {
+        // Fallback or fuzzy search
+        for (const k of Object.keys(BIOMECHANICS_DATABASE)) {
+          if (exerciseKey.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(exerciseKey.toLowerCase())) {
+            guide = BIOMECHANICS_DATABASE[k];
+            break;
+          }
+        }
+      }
+
+      if (!guide) {
+        guide = {
+          title: `${exerciseKey} — Protokol Izvođenja`,
+          summary: `Milan (197 cm / 116 kg): Održavanje stabilne poluge, neutralnog položaja zgloba i zaštite desnog lakta.`,
+          points: [
+            `Neutralni hvat je preporučeni izbor gde god je to moguće radi rasterećenja tetiva podlaktice.`,
+            `Kontrolisana ekscentrična faza od 3 sekunde štiti zglobne strukture bez gubitka mehaničke tenzije.`,
+            `Ako se javi proprioceptivni signal preopterećenja u desnom laktu, odmah smanji radijalni raspon ili pređi na bučice.`
+          ]
+        };
+      }
+
+      titleEl.textContent = guide.title;
+      let html = `
+        <div class="bg-[#262626] p-3 border border-rule text-neutral-200 leading-relaxed font-sans text-xs">
+          ${guide.summary}
+        </div>
+        <div class="space-y-2 mt-3">
+          <span class="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block font-bold">Ključna pravila za Milana:</span>
+          <ul class="space-y-2">
+      `;
+
+      guide.points.forEach(pt => {
+        html += `
+          <li class="flex items-start gap-2 bg-[#222222] p-2.5 border border-rule/60">
+            <span class="text-emerald-400 font-mono font-bold mt-0.5">•</span>
+            <span class="text-neutral-300 font-sans text-xs leading-normal">${pt}</span>
+          </li>
+        `;
+      });
+
+      html += `</ul></div>`;
+      contentEl.innerHTML = html;
+      modal.classList.remove('hidden');
+    }
+
+    function closeTechniqueModal() {
+      const modal = document.getElementById('modal-technique');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // =========================================================================
+    // 11. Standalone JSON/HTML Export (Requirement 8)
+    // =========================================================================
+    function openExportModal() {
+      const modal = document.getElementById('modal-export');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeExportModal() {
+      const modal = document.getElementById('modal-export');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function downloadJSONExport() {
+      const dataStr = JSON.stringify(appState.workouts, null, 2);
+      if (window.notebookAppApi && typeof window.notebookAppApi.triggerFileDownload === 'function') {
+        window.notebookAppApi.triggerFileDownload({
+          content: dataStr,
+          contentType: 'text/plain',
+          encoding: 'UTF-8',
+          filename: `milan_hevy_workouts_${appState.workouts[0]?.date || 'export'}.json`
+        });
+      } else {
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `milan_hevy_workouts.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    function downloadHTMLExport() {
+      // Create a standalone HTML export with the current state baked into it
+      const currentDoc = document.documentElement.outerHTML;
+      if (window.notebookAppApi && typeof window.notebookAppApi.triggerFileDownload === 'function') {
+        window.notebookAppApi.triggerFileDownload({
+          content: currentDoc,
+          contentType: 'text/plain',
+          encoding: 'UTF-8',
+          filename: `milan_fitness_dashboard_standalone.html`
+        });
+      } else {
+        const blob = new Blob([currentDoc], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `milan_fitness_dashboard_standalone.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    function resetToHistoricalData() {
+      if (confirm(appState.activeLang === 'sr' ? 'Da li sigurno želite da vratite bazu na originalne istorijske podatke?' : 'Reset to initial dataset?')) {
+        appState.workouts = JSON.parse(JSON.stringify(INITIAL_WORKOUTS));
+        persistState();
+        renderAll();
+      }
+    }
+
+    // =========================================================================
+    // 12. Filters & Language Toggles
+    // =========================================================================
+    function setFilterRange(rangeKey) {
+      appState.activeFilter = rangeKey;
+
+      ['1m', '3m', '6m', '1y', 'all'].forEach(k => {
+        const btn = document.getElementById(`filter-btn-${k}`);
+        if (btn) {
+          if (k === rangeKey) {
+            btn.className = `px-3 py-1 text-xs font-mono bg-[#0f62fe] text-white font-medium transition-colors`;
+          } else {
+            btn.className = `px-3 py-1 text-xs font-mono text-neutral-300 hover:text-white transition-colors`;
+          }
+        }
+      });
+
+      persistState();
+      renderAll();
+    }
+
+    function toggleLanguage() {
+      appState.activeLang = (appState.activeLang === 'sr') ? 'en' : 'sr';
+      applyLanguage(appState.activeLang);
+      persistState();
+      renderAll();
+    }
+
+    function applyLanguage(lang) {
+      const dict = I18N[lang] || I18N.sr;
+      document.documentElement.lang = lang;
+
+      const safeSetText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+      };
+
+      safeSetText('txt-app-title', dict.appTitle);
+      safeSetText('txt-profile-note', dict.profileNote);
+      safeSetText('txt-nav-biomech', dict.navBiomech);
+      safeSetText('txt-nav-export', dict.navExport);
+      safeSetText('txt-btn-add-hevy', dict.btnAddHevy);
+      safeSetText('txt-filter-label', dict.filterLabel);
+      safeSetText('filter-btn-1m', dict.filter1m);
+      safeSetText('filter-btn-3m', dict.filter3m);
+      safeSetText('filter-btn-6m', dict.filter6m);
+      safeSetText('filter-btn-1y', dict.filter1y);
+      safeSetText('filter-btn-all', dict.filterAll);
+      safeSetText('txt-stat-workouts-lbl', dict.statWorkouts);
+      safeSetText('txt-stat-tonnage-lbl', dict.statTonnage);
+      safeSetText('txt-stat-rowing-lbl', dict.statRowing);
+      safeSetText('txt-stat-sets-lbl', dict.statSets);
+      safeSetText('txt-sec-prs', dict.secPRs);
+      safeSetText('txt-pr-note', dict.prNote);
+      safeSetText('txt-banner-title', dict.bannerTitle);
+      safeSetText('txt-banner-desc', dict.bannerDesc);
+      safeSetText('txt-banner-btn', dict.bannerBtn);
+      safeSetText('txt-c2-title', dict.c2Title);
+      safeSetText('txt-c2-subtitle', dict.c2Subtitle);
+      safeSetText('txt-c2-card-pace', dict.c2CardPace);
+      safeSetText('txt-c2-card-finish', dict.c2CardFinish);
+      safeSetText('txt-c2-card-rest', dict.c2CardRest);
+      safeSetText('txt-c2-card-alltime', dict.c2CardAllTime);
+      safeSetText('txt-c2-chart-title', dict.c2ChartTitle);
+      safeSetText('txt-c2-table-title', dict.c2TableTitle);
+      safeSetText('txt-mg-title', dict.mgTitle);
+      safeSetText('txt-mg-subtitle', dict.mgSubtitle);
+      safeSetText('txt-mg-chart-lbl', dict.mgChartLbl);
+      safeSetText('txt-chart-bench-title', dict.chartBenchTitle);
+      safeSetText('txt-chart-vol-title', dict.chartVolTitle);
+      safeSetText('txt-history-title', dict.historyTitle);
+      safeSetText('txt-history-subtitle', dict.historySubtitle);
+      safeSetText('txt-btn-reset-data', dict.btnResetData);
+      safeSetText('txt-btn-footer-export', dict.btnFooterExport);
+      safeSetText('txt-modal-parser-title', dict.modalParserTitle);
+      safeSetText('txt-modal-parser-label', dict.modalParserLabel);
+      safeSetText('txt-modal-parser-desc', dict.modalParserDesc);
+      safeSetText('txt-btn-save-workout', dict.btnSaveWorkout);
+
+      const langBtnLabel = document.getElementById('txt-lang-label');
+      if (langBtnLabel) {
+        langBtnLabel.textContent = (lang === 'sr') ? 'SR / EN' : 'EN / SR';
+      }
+    }
+
+    function scrollToSection(secId) {
+      const el = document.getElementById(secId);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function escapeJsString(str) {
+      if (!str) return '';
+      return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
