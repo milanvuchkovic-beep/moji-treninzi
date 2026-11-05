@@ -826,19 +826,27 @@
       </div>
 
       <p style="color: var(--on-surface-variant); font-size: 0.875rem; margin-bottom: var(--space-md);" id="modal-import-desc">
-        Nalepite sirovi tekstualni izvoz iz Hevy aplikacije (CSV format ili standardni Hevy tekst). Parser će automatski prepoznati vežbe, serije, težine, distancu i napomene.
+        Nalepi poruku iz Hevy deljenja. Trening odmah ulazi na sajt, a ako je sačuvana adresa ispod, isti redovi idu u Google Sheet.
       </p>
 
       <div style="display: flex; flex-direction: column; gap: var(--space-sm); margin-bottom: var(--space-md);">
-        <label for="hevy-raw-input" class="data-label" id="lbl-hevy-paste">Nalepi Hevy tekst ili CSV:</label>
-        <textarea id="hevy-raw-input" rows="8" placeholder="&quot;title&quot;,&quot;start_time&quot;,&quot;end_time&quot;,&quot;exercise_title&quot;,&quot;weight_kg&quot;,&quot;reps&quot;..."></textarea>
+        <label for="hevy-raw-input" class="data-label" id="lbl-hevy-paste">Nalepi Hevy poruku ili CSV:</label>
+        <textarea id="hevy-raw-input" rows="8" placeholder="Full body A&#10;Tuesday, Nov 03, 2026 at 5:14pm&#10;&#10;Bench Press (Barbell)&#10;Set 1: 60 kg x 6 [Warmup]"></textarea>
       </div>
+
+      <details id="sheet-append-setup" style="margin-bottom: var(--space-md);">
+        <summary id="lbl-sheet-append" style="cursor: pointer; font-size: 0.875rem;">Jednokratno: adresa za upis u Google Sheet</summary>
+        <p id="sheet-append-help" style="color: var(--on-surface-variant); font-size: 0.8125rem; margin: var(--space-sm) 0;">
+          U svojoj tabeli: Extensions → Apps Script, nalepi google-apps-script/Code.gs, Deploy → Web app, Execute as: Me, Who has access: Anyone. Nalepi /exec adresu ovde.
+        </p>
+        <input id="sheet-append-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec" style="width: 100%;">
+      </details>
 
       <div id="hevy-parse-status" style="margin-bottom: var(--space-md); font-size: 0.875rem; display: none;"></div>
 
       <div style="display: flex; justify-content: flex-end; gap: var(--space-sm);">
         <button class="btn btn-secondary" onclick="closeHevyModal()" id="btn-modal-cancel">Otkaži</button>
-        <button class="btn btn-primary" onclick="parseAndSaveHevyInput()" id="btn-modal-parse">Analiziraj i Uvezi</button>
+        <button class="btn btn-primary" onclick="parseAndSaveHevyInput()" id="btn-modal-parse">Ubaci i osveži</button>
       </div>
     </div>
   </div>
@@ -869,11 +877,13 @@
 
   <script>
     /* ==========================================================================
-       GOOGLE SHEETS CSV CONFIGURATION
-       Paste your published Google Sheets CSV link below:
-       (In Google Sheets: File -> Share -> Publish to web -> Format: CSV -> Publish)
+       GOOGLE SHEETS
+       Read: published CSV. Write: Apps Script web app in google-apps-script/Code.gs,
+       executed as the sheet owner. The /exec URL is saved in this browser.
        ========================================================================== */
-    const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vROONeDV5uHW4UemVFoRrBrt5-3ISRJQDS-9JeNq85a70HW0QrTOuq2ow2C5MThq0XGoMfeC1tP6rIv/pub?output=csv"; // <-- PASTE YOUR PUBLISHED GOOGLE SHEETS CSV URL HERE
+    const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vROONeDV5uHW4UemVFoRrBrt5-3ISRJQDS-9JeNq85a70HW0QrTOuq2ow2C5MThq0XGoMfeC1tP6rIv/pub?output=csv";
+    const LOCAL_WORKOUTS_KEY = 'milan-tracker-workouts-v1';
+    const SHEET_APPEND_KEY = 'milan-tracker-sheet-append-url';
 
     /* --------------------------------------------------------------------------
        STATE AND APPLICATION DATA
@@ -1134,7 +1144,7 @@
         conceptTag: "Concept2 Damper 10",
         appTitle: "Milan • Trening & Biomehanika",
         appSubtitle: "Hibridni sistem 2–3x nedeljno: Progresivno preopterećenje, Concept2 HIIT intervali i dugovečnost zglobova.",
-        btnImport: "Uvezi Hevy / CSV",
+        btnImport: "Ubaci Hevy tekst",
         btnSync: "Sinhronizuj Sheets",
         bioAlert: "<strong>Biomehanički principi:</strong> Neutralni hvat štiti desni lakat • 45° poluneutralne bučice na kosoj klupi umesto ravne šipke • Mašine 1:1 direktan prenos — oprez na Butterfly/Pec Deck • Pauze 3 min na teškim serijama.",
         btnReadBio: "Vodič Tehnike & Poluga",
@@ -1202,13 +1212,15 @@
         thSplit: "Prosečan Split",
         thWatts: "Prosek Vata",
         thNotes: "Napomena / Protokol",
-        modalTitle: "Uvezi Hevy Trening / CSV Podatke",
-        modalDesc: "Nalepite Hevy CSV ili tekst. Sinhronizacija čita Google Sheets kolone: Date, Workout, Exercise, Set, Weight_kg, Reps, Distance_km, Duration_sec, Notes. Prazna tabela ne briše lokalni dnevnik.",
-        modalPaste: "Nalepi Hevy tekst ili CSV:",
+        modalTitle: "Ubaci Hevy trening",
+        modalDesc: "Nalepi poruku iz Hevy deljenja (naslov, datum, pa Set 1: ...). Trening odmah ulazi na sajt. Ako je ispod sačuvana Apps Script adresa, isti redovi idu u Google Sheet, a sajt zatim ponovo čita tabelu. CSV i dalje radi. Prazna tabela ne briše dnevnik.",
+        modalPaste: "Nalepi Hevy poruku ili CSV:",
         modalCancel: "Otkaži",
-        modalParse: "Analiziraj i Uvezi",
+        modalParse: "Ubaci i osveži",
         techClose: "U redu, razumem",
-        pastePlaceholder: "Date,Workout,Exercise,Set,Weight_kg,Reps,Distance_km,Duration_sec,Notes"
+        pastePlaceholder: "Full body A\nTuesday, Nov 03, 2026 at 5:14pm\n\nBench Press (Barbell)\nSet 1: 60 kg x 6 [Warmup]",
+        appendSummary: "Jednokratno: adresa za upis u Google Sheet",
+        appendHelp: "U svojoj tabeli: Extensions → Apps Script, nalepi google-apps-script/Code.gs, Deploy → Web app, Execute as: Me, Who has access: Anyone. Nalepi /exec adresu ovde. Posle toga svaki nalepak upisuje redove, a sajt ih povlači sam. Adresa ostaje samo u ovom pregledaču."
       },
       en: {
         profileTag: "ATHLETE 197cm / 116kg",
@@ -1216,7 +1228,7 @@
         conceptTag: "Concept2 Damper 10",
         appTitle: "Milan • Training & Biomechanics",
         appSubtitle: "Hybrid system 2–3x weekly: Progressive overload, Concept2 HIIT intervals & joint longevity.",
-        btnImport: "Import Hevy / CSV",
+        btnImport: "Add Hevy text",
         btnSync: "Sync Google Sheets",
         bioAlert: "<strong>Biomechanical Directives:</strong> Neutral grip shields right elbow • 45° semi-neutral dumbbells on incline bench over barbell • 1:1 machine direct ratio — be cautious on Butterfly/Pec Deck • 3-min rest on heavy sets.",
         btnReadBio: "Technique & Levers Guide",
@@ -1284,13 +1296,15 @@
         thSplit: "Average Split",
         thWatts: "Average Watts",
         thNotes: "Note / Protocol",
-        modalTitle: "Import Hevy Workout / CSV",
-        modalDesc: "Paste a Hevy CSV or text export. Sync reads Google Sheets columns: Date, Workout, Exercise, Set, Weight_kg, Reps, Distance_km, Duration_sec, Notes. An empty sheet does not erase the local log.",
-        modalPaste: "Paste Hevy text or CSV:",
+        modalTitle: "Add a Hevy workout",
+        modalDesc: "Paste the Hevy share message (title, date, then Set 1: ...). The workout shows on the site immediately. With an Apps Script URL saved below, the same rows are written to Google Sheets and the site reads the sheet again. CSV still works. An empty sheet does not erase the log.",
+        modalPaste: "Paste a Hevy message or CSV:",
         modalCancel: "Cancel",
-        modalParse: "Parse and Import",
+        modalParse: "Add and refresh",
         techClose: "Got it",
-        pastePlaceholder: "Date,Workout,Exercise,Set,Weight_kg,Reps,Distance_km,Duration_sec,Notes"
+        pastePlaceholder: "Full body A\nTuesday, Nov 03, 2026 at 5:14pm\n\nBench Press (Barbell)\nSet 1: 60 kg x 6 [Warmup]",
+        appendSummary: "One time: address that writes to Google Sheets",
+        appendHelp: "In your own sheet: Extensions → Apps Script, paste google-apps-script/Code.gs, Deploy → Web app, Execute as: Me, Who has access: Anyone. Paste the /exec URL here. After that every paste writes rows and the site pulls them. The address stays in this browser only."
       }
     };
 
@@ -1317,6 +1331,8 @@
           console.warn("Could not load persisted state:", e);
         }
       }
+      loadLocalWorkouts();
+      bindAppendUrlField();
 
       // 3. Render initial views
       applyLanguage(currentLanguage);
@@ -1330,10 +1346,11 @@
       renderTechniqueGuides();
       calculateRowingMetrics();
 
-      // 4. Notify ready
+      // 4. Notify ready, then pull the published sheet without a dialog
       if (window.notebookAppApi && typeof window.notebookAppApi.notifyAppReady === 'function') {
         window.notebookAppApi.notifyAppReady();
       }
+      syncGoogleSheets({ silent: true });
     });
 
     /* --------------------------------------------------------------------------
@@ -1442,6 +1459,8 @@
       setElemText('modal-import-title', t.modalTitle);
       setElemText('modal-import-desc', t.modalDesc);
       setElemText('lbl-hevy-paste', t.modalPaste);
+      setElemText('lbl-sheet-append', t.appendSummary);
+      setElemText('sheet-append-help', t.appendHelp);
       setElemText('btn-modal-cancel', t.modalCancel);
       setElemText('btn-modal-parse', t.modalParse);
       setElemText('btn-tech-close', t.techClose);
@@ -2445,7 +2464,7 @@
 
     function formatSetLabel(s, idx) {
       const parts = [];
-      if (s.weight) parts.push(`${s.weight}kg`);
+      if (s.weight !== undefined && s.weight !== null && s.weight !== '') parts.push(`${s.weight}kg`);
       if (s.reps) parts.push(`× ${s.reps}`);
       if (s.km) parts.push(`${s.km}km`);
       if (s.seconds) parts.push(`${s.seconds}s`);
@@ -2571,6 +2590,9 @@
     function openHevyModal() {
       const modal = document.getElementById('hevy-modal');
       if (modal) modal.classList.add('open');
+      bindAppendUrlField();
+      const input = document.getElementById('sheet-append-url');
+      if (input && !input.value) input.value = readStoredAppendUrl();
     }
 
     function closeHevyModal() {
@@ -2580,62 +2602,69 @@
       if (status) status.style.display = 'none';
     }
 
-    function parseAndSaveHevyInput() {
+    async function parseAndSaveHevyInput() {
       const input = document.getElementById('hevy-raw-input');
       const status = document.getElementById('hevy-parse-status');
       if (!input || !status) return;
+      const isSr = currentLanguage === 'sr';
 
       const raw = input.value.trim();
       if (!raw) {
         status.style.display = 'block';
         status.style.color = 'var(--error)';
-        status.textContent = currentLanguage === 'sr' ? 'Molimo nalepite tekst pre uvoza.' : 'Please paste text before importing.';
+        status.textContent = isSr ? 'Nalepi Hevy poruku pre uvoza.' : 'Paste a Hevy message before importing.';
         return;
       }
 
       try {
-        const parsedWorkouts = parseHevyRaw(raw);
+        const parsedWorkouts = dedupeWorkouts(parseHevyRaw(raw));
         if (parsedWorkouts.length === 0) {
           status.style.display = 'block';
           status.style.color = 'var(--warning)';
-          status.textContent = currentLanguage === 'sr' ? 'Format nije prepoznat. Proverite tekst izvoza.' : 'Format not recognized. Check export text.';
+          status.textContent = isSr
+            ? 'Format nije prepoznat. Nalepi Hevy poruku: naslov, datum, pa Set 1: ...'
+            : 'Format not recognized. Paste the Hevy message: title, date, then Set 1: ...';
           return;
         }
 
-        // Merge with existing avoiding duplicate IDs
-        let addedCount = 0;
-        parsedWorkouts.forEach(pw => {
-          const exists = allWorkouts.some(w => w.date === pw.date && w.title === pw.title);
-          if (!exists) {
-            allWorkouts.unshift(pw);
-            addedCount++;
-          }
-        });
-
+        const { added, updated } = upsertParsedWorkouts(parsedWorkouts);
         saveState();
+        refreshViews();
+        input.value = '';
 
+        const names = parsedWorkouts.map(w => `${w.title} (${w.date})`).join(', ');
+        const onSite = isSr
+          ? (parsedWorkouts.length > 1 ? `${names} su na sajtu` : `${names} je na sajtu`)
+          : (parsedWorkouts.length > 1 ? `${names} are on the site` : `${names} is on the site`);
+        const counts = isSr
+          ? `${added} novo, ${updated} ažurirano`
+          : `${added} new, ${updated} updated`;
+        const appendUrl = getAppendUrl();
         status.style.display = 'block';
         status.style.color = 'var(--tertiary)';
-        status.textContent = currentLanguage === 'sr' 
-          ? `Uspešno uvezeno ${parsedWorkouts.length} sesija (${addedCount} novih dodato).` 
-          : `Successfully parsed ${parsedWorkouts.length} workouts (${addedCount} new added).`;
+        if (!appendUrl) {
+          const setup = document.getElementById('sheet-append-setup');
+          if (setup) setup.open = true;
+          status.textContent = isSr
+            ? `${onSite} (${counts}). Da bi isti redovi ušli u Google Sheet, jednom nalepi Apps Script adresu ispod.`
+            : `${onSite} (${counts}). Paste the Apps Script address below once so the same rows also go into Google Sheets.`;
+          return;
+        }
 
-        setTimeout(() => {
-          closeHevyModal();
-          updateKpis();
-          renderProgressionChart();
-          renderTonnageChart();
-          renderWorkoutTypeChart();
-          renderRowingAnalytics();
-          renderMuscleAnalytics();
-          renderWorkoutHistory(allWorkouts);
-        }, 800);
-
+        status.textContent = isSr
+          ? `${onSite}. Upisujem u Google Sheet...`
+          : `${onSite}. Writing to Google Sheets...`;
+        await postRowsToSheet(appendUrl, workoutsToSheetRows(parsedWorkouts));
+        await syncGoogleSheets({ silent: true });
+        status.textContent = isSr
+          ? `${onSite} i poslato u tabelu (${counts}).`
+          : `${onSite} and sent to the sheet (${counts}).`;
+        setTimeout(() => closeHevyModal(), 900);
       } catch (err) {
         console.error("Hevy parsing error:", err);
         status.style.display = 'block';
         status.style.color = 'var(--error)';
-        status.textContent = (currentLanguage === 'sr' ? "Greška pri raščlanjivanju: " : "Parse error: ") + err.message;
+        status.textContent = (isSr ? "Greška pri raščlanjivanju: " : "Parse error: ") + err.message;
       }
     }
 
@@ -2662,8 +2691,11 @@
 
     function normalizeDate(raw) {
       if (raw === undefined || raw === null) return null;
-      const s = String(raw).trim().replace(/^"|"$/g, '');
+      let s = String(raw).trim().replace(/^"|"$/g, '');
       if (!s) return null;
+      s = s.replace(/^[A-Za-z]+,\s+(?=[A-Za-z]+\s+\d)/, '');
+      s = s.replace(/\s+at\s+/i, ' ');
+      s = s.replace(/(\d{1,2}:\d{2})\s*([ap])\.?m\.?/i, '$1 $2m');
       if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
       if (/^\d{5}(\.\d+)?$/.test(s)) {
         const serial = Math.floor(Number(s));
@@ -2775,7 +2807,13 @@
           }
         }
 
-        const notes = cleanText(cell(cols, idx.notes));
+        let notes = cleanText(cell(cols, idx.notes));
+        let setType = cleanText(cell(cols, idx.setType)).toLowerCase();
+        const typeInNotes = notes.match(/\s*\[(warmup|failure|dropset)\]\s*$/i);
+        if (typeInNotes) {
+          if (!setType || setType === 'normal') setType = typeInNotes[1].toLowerCase();
+          notes = notes.slice(0, typeInNotes.index).trim();
+        }
         let exercise = workout.exercises.find(e => e.name === exName);
         if (!exercise) {
           exercise = { name: exName, sets: [] };
@@ -2793,16 +2831,15 @@
         const orderRaw = String(cell(cols, idx.setIndex) || '').trim();
         const orderNum = orderRaw === '' ? null : parseNum(orderRaw);
         const setObj = { _order: orderNum === null ? (exercise.sets.length + 1) : orderNum };
-        const weight = parseNum(cell(cols, idx.weight));
+        const weightRaw = String(cell(cols, idx.weight) || '').trim();
         const reps = parseNum(cell(cols, idx.reps));
         const seconds = parseDuration(cell(cols, idx.duration));
-        const setType = cleanText(cell(cols, idx.setType)).toLowerCase();
-        if (weight > 0) setObj.weight = Math.round(weight * 100) / 100;
+        if (weightRaw !== '') setObj.weight = Math.round(parseNum(weightRaw) * 100) / 100;
         if (reps > 0) setObj.reps = Math.round(reps);
         if (dist > 0) setObj.km = Math.round(dist * 1000) / 1000;
         if (seconds > 0) setObj.seconds = Math.round(seconds * 10) / 10;
         if (setType && setType !== 'normal') setObj.type = setType;
-        if (setObj.weight || setObj.reps || setObj.km || setObj.seconds) exercise.sets.push(setObj);
+        if (weightRaw !== '' || setObj.reps || setObj.km || setObj.seconds) exercise.sets.push(setObj);
       });
 
       return Object.values(workoutsMap).map(w => {
@@ -2813,6 +2850,128 @@
         w.exercises = w.exercises.filter(ex => ex.sets.length > 0);
         return w;
       }).filter(w => w.exercises.length > 0);
+    }
+
+    function isHevyDateLine(line) {
+      return /^(?:[A-Za-z]+,\s+)?[A-Z][a-z]+\s+\d{1,2},\s+\d{4}\s+at\s+\d{1,2}:\d{2}\s*[ap]\.?m\.?$/i.test(String(line || '').trim());
+    }
+
+    function isHevyShareExport(text) {
+      const lines = String(text || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      return lines.some(isHevyDateLine) && lines.some(line => /^Set\s+\d+\s*:/i.test(line));
+    }
+
+    function parseDurationPhrase(text) {
+      const source = String(text || '');
+      if (!/\d/.test(source) || !/[hms]/i.test(source)) return 0;
+      const hours = source.match(/(\d+)\s*h\b/i);
+      const minutes = source.match(/(\d+)\s*min\b/i);
+      const seconds = source.match(/(\d+)\s*s\b/i);
+      if (!hours && !minutes && !seconds) return 0;
+      return (hours ? Number(hours[1]) : 0) * 3600 + (minutes ? Number(minutes[1]) : 0) * 60 + (seconds ? Number(seconds[1]) : 0);
+    }
+
+    function parseHevyShareSet(body, order) {
+      let text = String(body || '').trim();
+      let type = '';
+      const typeMatch = text.match(/\[([^\]]+)\]\s*$/);
+      if (typeMatch) {
+        type = typeMatch[1].trim().toLowerCase();
+        text = text.slice(0, typeMatch.index).trim();
+      }
+      const setObj = { _order: order };
+      const distTime = text.match(/^([\d.,]+)\s*km\s*[-–—]\s*(.+)$/i);
+      const kgReps = text.match(/^([\d.,]+)\s*kg\s*[x×]\s*([\d.,]+)/i);
+      const repsOnly = text.match(/^([\d.,]+)\s*reps?$/i);
+      if (distTime) {
+        setObj.km = Math.round(parseNum(distTime[1]) * 1000) / 1000;
+        const seconds = parseDurationPhrase(distTime[2]);
+        if (seconds > 0) setObj.seconds = seconds;
+      } else if (kgReps) {
+        setObj.weight = Math.round(parseNum(kgReps[1]) * 100) / 100;
+        setObj.reps = Math.round(parseNum(kgReps[2]));
+      } else if (repsOnly) {
+        setObj.reps = Math.round(parseNum(repsOnly[1]));
+      } else {
+        const seconds = parseDurationPhrase(text);
+        if (seconds > 0) setObj.seconds = seconds;
+      }
+      if (type && type !== 'normal') setObj.type = type;
+      if (setObj.weight === undefined && !setObj.reps && !setObj.km && !setObj.seconds) return null;
+      return setObj;
+    }
+
+    function parseHevyShareText(rawText) {
+      const lines = String(rawText || '').replace(/\r/g, '').split('\n');
+      const workouts = [];
+      let current = null;
+      let currentEx = null;
+      let pendingTitle = null;
+
+      function startWorkout(title, dateLine) {
+        const dateStr = normalizeDate(dateLine) || todayISO();
+        const name = cleanText(title) || 'Workout';
+        current = {
+          id: `w-${dateStr}-${slugify(name)}`,
+          title: name,
+          date: dateStr,
+          exercises: []
+        };
+        workouts.push(current);
+        currentEx = null;
+        pendingTitle = null;
+      }
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || line === '@hevyapp' || /^https?:\/\//i.test(line)) continue;
+        if (isHevyDateLine(line)) {
+          startWorkout(pendingTitle, line);
+          continue;
+        }
+        const setMatch = line.match(/^Set\s+(\d+)\s*:\s*(.+)$/i);
+        if (setMatch && current) {
+          if (!currentEx) {
+            currentEx = { name: 'Exercise', sets: [] };
+            current.exercises.push(currentEx);
+          }
+          const setObj = parseHevyShareSet(setMatch[2], Number(setMatch[1]));
+          if (setObj) currentEx.sets.push(setObj);
+          pendingTitle = null;
+          continue;
+        }
+        const noteMatch = line.match(/^"([^"]*)"$/) || line.match(/^“([^”]*)”$/);
+        if (noteMatch && currentEx) {
+          const note = cleanText(noteMatch[1]);
+          if (note) currentEx.notes = currentEx.notes ? `${currentEx.notes} · ${note}` : note;
+          continue;
+        }
+        if (!current) {
+          pendingTitle = line;
+          continue;
+        }
+        let next = '';
+        for (let j = i + 1; j < lines.length; j++) {
+          const candidate = lines[j].trim();
+          if (candidate) { next = candidate; break; }
+        }
+        if (isHevyDateLine(next)) {
+          pendingTitle = line;
+          continue;
+        }
+        currentEx = { name: line, sets: [] };
+        current.exercises.push(currentEx);
+        pendingTitle = null;
+      }
+
+      return workouts.map(w => {
+        w.exercises.forEach(ex => {
+          ex.sets.sort((a, b) => (a._order || 0) - (b._order || 0));
+          ex.sets.forEach(s => { delete s._order; });
+        });
+        w.exercises = w.exercises.filter(ex => ex.sets.length);
+        return w;
+      }).filter(w => w.exercises.length);
     }
 
     function parseHevyText(lines) {
@@ -2895,6 +3054,7 @@
           date: -1, distanceIsMeters: false
         });
       }
+      if (isHevyShareExport(text)) return parseHevyShareText(text);
       return parseHevyText(lines);
     }
 
@@ -2936,63 +3096,204 @@
     /* --------------------------------------------------------------------------
        GOOGLE SHEETS CSV SYNCHRONIZATION
        -------------------------------------------------------------------------- */
-    async function syncGoogleSheets() {
+    async function syncGoogleSheets(options = {}) {
+      const silent = options.silent === true;
       const syncBtn = document.getElementById('btn-sync-text');
       const syncIcon = document.getElementById('sync-icon');
-      const isSr = currentLanguage === 'sr';
+      const isSr = () => currentLanguage === 'sr';
 
       if (!GOOGLE_SHEETS_CSV_URL || GOOGLE_SHEETS_CSV_URL.trim() === '') {
-        alert(isSr
-          ? "Google Sheets CSV link nije konfigurisan.\n\nDa biste povezali tabelu, otvorite izvorni kod i unesite URL u polje 'GOOGLE_SHEETS_CSV_URL' na samom vrhu script bloka."
-          : "Google Sheets CSV URL is empty.\n\nPlease open the HTML source code and paste your published Google Sheets CSV URL into 'GOOGLE_SHEETS_CSV_URL' at the very top of the script tag.");
+        if (!silent) {
+          alert(isSr()
+            ? "Google Sheets CSV link nije konfigurisan.\n\nDa biste povezali tabelu, otvorite izvorni kod i unesite URL u polje 'GOOGLE_SHEETS_CSV_URL' na samom vrhu script bloka."
+            : "Google Sheets CSV URL is empty.\n\nPlease open the HTML source code and paste your published Google Sheets CSV URL into 'GOOGLE_SHEETS_CSV_URL' at the very top of the script tag.");
+        }
         return;
       }
 
-      if (syncBtn) syncBtn.textContent = isSr ? "Povezivanje..." : "Syncing...";
+      if (!silent && syncBtn) syncBtn.textContent = isSr() ? "Povezivanje..." : "Syncing...";
       if (syncIcon) syncIcon.classList.add('syncing');
 
       try {
-        const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+        const joiner = GOOGLE_SHEETS_CSV_URL.includes('?') ? '&' : '?';
+        const response = await fetch(`${GOOGLE_SHEETS_CSV_URL}${joiner}t=${Date.now()}`, { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const csvText = await response.text();
         const parsed = parseHevyRaw(csvText);
         if (!parsed.length) {
-          alert(isSr
-            ? "Tabela je povezana, ali nema nijednog treninga — samo zaglavlje.\n\nOčekivane kolone: Date, Workout, Exercise, Set, Weight_kg, Reps, Distance_km, Duration_sec, Notes.\nLokalni dnevnik nije obrisan."
-            : "The sheet is connected, but it has no workout rows yet — only the header.\n\nExpected columns: Date, Workout, Exercise, Set, Weight_kg, Reps, Distance_km, Duration_sec, Notes.\nThe local log was kept.");
+          if (!silent) {
+            alert(isSr()
+              ? "Tabela je povezana, ali nema nijednog treninga — samo zaglavlje.\n\nOčekivane kolone: Date, Workout, Exercise, Set, Weight_kg, Reps, Distance_km, Duration_sec, Notes.\nLokalni dnevnik nije obrisan."
+              : "The sheet is connected, but it has no workout rows yet — only the header.\n\nExpected columns: Date, Workout, Exercise, Set, Weight_kg, Reps, Distance_km, Duration_sec, Notes.\nThe local log was kept.");
+          }
           return;
         }
 
-        let added = 0;
-        let updated = 0;
-        parsed.forEach(pw => {
-          const existing = allWorkouts.findIndex(w => w.date === pw.date && w.title === pw.title);
-          if (existing >= 0) {
-            const previous = allWorkouts[existing];
-            allWorkouts[existing] = {
-              ...pw,
-              durationMinutes: pw.durationMinutes || previous.durationMinutes
-            };
-            updated++;
-          } else {
-            allWorkouts.push(pw);
-            added++;
-          }
-        });
-        allWorkouts.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        const { added, updated } = mergeSheetWorkouts(parsed);
         saveState();
         refreshViews();
-        alert(isSr
-          ? `Sinhronizacija uspešna. Novo: ${added}, ažurirano: ${updated}. U bazi je sada ${allWorkouts.length} treninga.`
-          : `Sync successful. Added ${added}, updated ${updated}. The log now has ${allWorkouts.length} workouts.`);
+        if (!silent) {
+          alert(isSr()
+            ? `Sinhronizacija uspešna. Novo: ${added}, ažurirano: ${updated}. U bazi je sada ${allWorkouts.length} treninga.`
+            : `Sync successful. Added ${added}, updated ${updated}. The log now has ${allWorkouts.length} workouts.`);
+        }
       } catch (err) {
         console.error("Sheets sync error:", err);
-        alert(isSr
-          ? "Greška prilikom preuzimanja tabele: " + err.message
-          : "Error syncing Google Sheets: " + err.message);
+        if (!silent) {
+          alert(isSr()
+            ? "Greška prilikom preuzimanja tabele: " + err.message
+            : "Error syncing Google Sheets: " + err.message);
+        }
       } finally {
-        if (syncBtn) syncBtn.textContent = isSr ? "Sinhronizuj Sheets" : "Sync Google Sheets";
+        if (syncBtn) syncBtn.textContent = isSr() ? "Sinhronizuj Sheets" : "Sync Google Sheets";
         if (syncIcon) syncIcon.classList.remove('syncing');
+      }
+    }
+
+    function dedupeWorkouts(workouts) {
+      const byKey = new Map();
+      (workouts || []).forEach(workout => {
+        if (workout && workout.date && workout.title) byKey.set(`${workout.date}||${workout.title}`, workout);
+      });
+      return [...byKey.values()];
+    }
+
+    function upsertParsedWorkouts(parsedWorkouts) {
+      let added = 0;
+      let updated = 0;
+      parsedWorkouts.forEach(pw => {
+        pw.freshUntil = Date.now() + 15 * 60 * 1000;
+        const existing = allWorkouts.findIndex(w => w.date === pw.date && w.title === pw.title);
+        if (existing >= 0) {
+          pw.durationMinutes = pw.durationMinutes || allWorkouts[existing].durationMinutes;
+          pw.id = allWorkouts[existing].id || pw.id;
+          allWorkouts[existing] = pw;
+          updated++;
+        } else {
+          allWorkouts.push(pw);
+          added++;
+        }
+      });
+      allWorkouts.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      return { added, updated };
+    }
+
+    function mergeSheetWorkouts(parsed) {
+      let added = 0;
+      let updated = 0;
+      const now = Date.now();
+      parsed.forEach(pw => {
+        const existing = allWorkouts.findIndex(w => w.date === pw.date && w.title === pw.title);
+        if (existing >= 0) {
+          const previous = allWorkouts[existing];
+          if (previous.freshUntil && now < previous.freshUntil) return;
+          allWorkouts[existing] = {
+            ...pw,
+            durationMinutes: pw.durationMinutes || previous.durationMinutes
+          };
+          updated++;
+        } else {
+          allWorkouts.push(pw);
+          added++;
+        }
+      });
+      allWorkouts.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      return { added, updated };
+    }
+
+    function workoutsToSheetRows(workouts) {
+      const rows = [];
+      (workouts || []).forEach(workout => {
+        (workout.exercises || []).forEach(exercise => {
+          (exercise.sets || []).forEach((set, index) => {
+            const notes = [];
+            if (exercise.notes) notes.push(exercise.notes);
+            if (set.type && set.type !== 'normal') {
+              notes.push('[' + set.type.charAt(0).toUpperCase() + set.type.slice(1) + ']');
+            }
+            rows.push({
+              date: workout.date,
+              workout: workout.title,
+              exercise: exercise.name,
+              set: index + 1,
+              weight: set.weight === undefined ? '' : set.weight,
+              reps: set.reps || '',
+              distance: set.km || '',
+              duration: set.seconds || '',
+              notes: notes.join(' ')
+            });
+          });
+        });
+      });
+      return rows;
+    }
+
+    function readStoredAppendUrl() {
+      try { return (localStorage.getItem(SHEET_APPEND_KEY) || '').trim(); }
+      catch (e) { return ''; }
+    }
+
+    function getAppendUrl() {
+      const input = document.getElementById('sheet-append-url');
+      const typed = input ? input.value.trim() : '';
+      const url = typed || readStoredAppendUrl();
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/\s]+\/(exec|dev)\/?(?:\?.*)?$/.test(url)) return '';
+      return url;
+    }
+
+    function bindAppendUrlField() {
+      const input = document.getElementById('sheet-append-url');
+      if (!input || input.dataset.bound === '1') return;
+      input.dataset.bound = '1';
+      if (!input.value) input.value = readStoredAppendUrl();
+      input.addEventListener('change', () => {
+        try { localStorage.setItem(SHEET_APPEND_KEY, input.value.trim()); }
+        catch (e) { console.warn('Could not store the sheet address', e); }
+      });
+    }
+
+    function postRowsToSheet(url, rows) {
+      return new Promise(resolve => {
+        const frameId = 'sheet-append-frame';
+        let frame = document.getElementById(frameId);
+        if (!frame) {
+          frame = document.createElement('iframe');
+          frame.id = frameId;
+          frame.name = frameId;
+          frame.hidden = true;
+          frame.setAttribute('aria-hidden', 'true');
+          document.body.appendChild(frame);
+        }
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.target = frameId;
+        form.acceptCharset = 'UTF-8';
+        form.style.display = 'none';
+        const payload = document.createElement('input');
+        payload.type = 'hidden';
+        payload.name = 'payload';
+        payload.value = JSON.stringify({ rows });
+        form.appendChild(payload);
+        document.body.appendChild(form);
+        form.submit();
+        setTimeout(() => {
+          form.remove();
+          resolve({ sent: true });
+        }, 1500);
+      });
+    }
+
+    function loadLocalWorkouts() {
+      try {
+        const raw = localStorage.getItem(LOCAL_WORKOUTS_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!Array.isArray(data)) return;
+        const usable = data.filter(w => w && w.date && w.title && Array.isArray(w.exercises) && w.exercises.length);
+        if (usable.length) allWorkouts = usable;
+      } catch (e) {
+        console.warn('Local workout log could not be read', e);
       }
     }
 
@@ -3000,6 +3301,11 @@
        STATE PERSISTENCE HELPER
        -------------------------------------------------------------------------- */
     async function saveState() {
+      try {
+        localStorage.setItem(LOCAL_WORKOUTS_KEY, JSON.stringify(allWorkouts));
+      } catch (e) {
+        console.warn('Could not store the workout log in this browser', e);
+      }
       if (window.notebookAppApi && typeof window.notebookAppApi.setAppState === 'function') {
         try {
           await window.notebookAppApi.setAppState({
