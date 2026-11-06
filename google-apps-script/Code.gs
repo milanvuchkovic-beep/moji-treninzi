@@ -13,8 +13,15 @@
  *
  * Svaki sledeći nalepak ide POST-om ovde. Isti datum + naziv treninga
  * zamenjuje stare redove, pa ponovni uvoz ne duplira serije.
+ *
+ * Telesna mera (težina, struk, ruka, noga) ide u tab "Mera" u istoj tabeli.
+ * Posle izmene koda: Deploy → Manage deployments → olovka → New version.
+ * Zatim File → Share → Publish to web, izaberi tab Mera, CSV, i nalepi tu
+ * adresu na sajtu u polje ispod /exec adrese.
  */
 var HEADER = ['Date', 'Workout', 'Exercise', 'Set', 'Weight_kg', 'Reps', 'Distance_km', 'Duration_sec', 'Notes'];
+var BODY_HEADER = ['Date', 'Weight_kg', 'Waist_cm', 'Arm_cm', 'Leg_cm'];
+var BODY_SHEET = 'Mera';
 
 function doGet() {
   return ContentService
@@ -28,9 +35,15 @@ function doPost(e) {
   try {
     var body = readBody_(e);
     var rows = Array.isArray(body.rows) ? body.rows : [];
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-    ensureHeader_(sheet);
-    var written = replaceWorkouts_(sheet, rows);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var written = 0;
+    if (body.kind === 'body') {
+      written = upsertBody_(bodySheet_(ss), rows);
+    } else {
+      var sheet = ss.getSheets()[0];
+      ensureHeader_(sheet);
+      written = replaceWorkouts_(sheet, rows);
+    }
     return ContentService
       .createTextOutput(JSON.stringify({ ok: true, written: written }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -97,6 +110,62 @@ function replaceWorkouts_(sheet, rows) {
   var start = sheet.getLastRow() + 1;
   sheet.getRange(start, 1, matrix.length, HEADER.length).setValues(matrix);
   return matrix.length;
+}
+
+function bodySheet_(ss) {
+  var sheet = ss.getSheetByName(BODY_SHEET);
+  if (!sheet) sheet = ss.insertSheet(BODY_SHEET);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(BODY_HEADER);
+    return sheet;
+  }
+  var first = sheet.getRange(1, 1, 1, BODY_HEADER.length).getValues()[0];
+  var same = BODY_HEADER.every(function(name, i) {
+    return String(first[i] || '').trim().toLowerCase() === name.toLowerCase();
+  });
+  if (!same) {
+    sheet.insertRowBefore(1);
+    sheet.getRange(1, 1, 1, BODY_HEADER.length).setValues([BODY_HEADER]);
+  }
+  return sheet;
+}
+
+function upsertBody_(sheet, rows) {
+  var clean = [];
+  var byDate = {};
+  rows.forEach(function(row) {
+    if (!row || !row.date) return;
+    var point = {
+      date: String(row.date).slice(0, 10),
+      weight: metricNumber_(row.weight),
+      waist: metricNumber_(row.waist),
+      arm: metricNumber_(row.arm),
+      leg: metricNumber_(row.leg)
+    };
+    if (point.weight === '' && point.waist === '' && point.arm === '' && point.leg === '') return;
+    byDate[point.date] = point;
+  });
+  Object.keys(byDate).forEach(function(date) { clean.push(byDate[date]); });
+  if (!clean.length) return 0;
+  var tz = sheet.getParent().getSpreadsheetTimeZone();
+  var values = sheet.getDataRange().getValues();
+  var keys = {};
+  clean.forEach(function(row) { keys[row.date] = true; });
+  for (var i = values.length - 1; i >= 1; i--) {
+    if (keys[cellDate_(values[i][0], tz)]) sheet.deleteRow(i + 1);
+  }
+  var matrix = clean.map(function(row) {
+    return [row.date, row.weight, row.waist, row.arm, row.leg];
+  });
+  var start = sheet.getLastRow() + 1;
+  sheet.getRange(start, 1, matrix.length, BODY_HEADER.length).setValues(matrix);
+  return matrix.length;
+}
+
+function metricNumber_(value) {
+  if (value === undefined || value === null || value === '') return '';
+  var number = Number(value);
+  return isNaN(number) ? '' : number;
 }
 
 function cellDate_(value, tz) {
