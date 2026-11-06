@@ -4377,12 +4377,38 @@
       return isBodyCsvUrl(url) ? url : '';
     }
 
-    function rememberBodyCsvUrl() {
+    function showImportStatus(text, color) {
+      const status = document.getElementById('hevy-parse-status');
+      if (!status || !text) return;
+      status.style.display = 'block';
+      status.style.color = color;
+      status.textContent = text;
+    }
+
+    function showBodyStatus(text, color) {
+      const status = document.getElementById('body-status');
+      if (!status || !text) return;
+      status.style.display = 'block';
+      status.style.color = color;
+      status.textContent = text;
+    }
+
+    function rememberBodyCsvUrl(showStatus) {
       const input = document.getElementById('body-csv-url');
       if (!input) return '';
-      try { localStorage.setItem(BODY_CSV_KEY, input.value.trim()); }
+      const typed = input.value.trim();
+      try { localStorage.setItem(BODY_CSV_KEY, typed); }
       catch (e) { console.warn('Could not store the body CSV address', e); }
-      return getBodyCsvUrl();
+      const url = getBodyCsvUrl();
+      const isSr = currentLanguage === 'sr';
+      if (showStatus && typed && !url) {
+        const text = isSr
+          ? 'Link treba da bude objavljeni CSV taba Mera, sa output=csv u adresi.'
+          : 'The link needs to be the published CSV of the Mera tab, with output=csv in the address.';
+        showImportStatus(text, 'var(--warning)');
+        showBodyStatus(text, 'var(--warning)');
+      }
+      return url;
     }
 
     function bindBodyCsvField() {
@@ -4390,9 +4416,47 @@
       if (!input || input.dataset.bound === '1') return;
       input.dataset.bound = '1';
       if (!input.value) input.value = readStoredBodyCsvUrl();
-      input.addEventListener('change', () => {
-        if (rememberBodyCsvUrl()) syncBodySheet({ silent: true });
+      const accept = () => {
+        const url = rememberBodyCsvUrl(true);
+        if (!url || input.dataset.synced === url) return;
+        input.dataset.synced = url;
+        const isSr = currentLanguage === 'sr';
+        const reading = isSr ? 'Adresa taba Mera je sačuvana. Čitam objavljeni CSV...' : 'The Mera tab address is saved. Reading the published CSV...';
+        showImportStatus(reading, 'var(--tertiary)');
+        showBodyStatus(reading, 'var(--tertiary)');
+        syncBodySheet().then(result => {
+          const text = bodySyncMessage(result, isSr);
+          const color = result && result.reason === 'workout' ? 'var(--warning)' : 'var(--tertiary)';
+          showImportStatus(text, color);
+          showBodyStatus(text, color);
+        });
+      };
+      input.addEventListener('input', () => {
+        if (getBodyCsvUrl()) accept();
       });
+      input.addEventListener('change', accept);
+    }
+
+    function bodySyncMessage(result, isSr) {
+      const reason = result && result.reason;
+      if (reason === 'workout') {
+        return isSr
+          ? 'Ovaj CSV je tab treninga. U Publish to web izaberi tab Mera i format CSV.'
+          : 'This CSV is the workout tab. In Publish to web choose the Mera tab and CSV format.';
+      }
+      if (result && result.ok && result.count) {
+        return isSr
+          ? `Adresa taba Mera je sačuvana. Pročitano mera: ${result.count}.`
+          : `The Mera tab address is saved. Measurements read: ${result.count}.`;
+      }
+      if (result && result.ok) {
+        return isSr
+          ? 'Adresa taba Mera je sačuvana. Tab još nema redova, ili se objava osvežava par minuta.'
+          : 'The Mera tab address is saved. The tab has no rows yet, or the publish link is still refreshing.';
+      }
+      return isSr
+        ? 'Adresa taba Mera je sačuvana u ovom pregledaču. Objavljeni CSV još nije stigao; osveži za par minuta.'
+        : 'The Mera tab address is saved in this browser. The published CSV is not available yet; refresh in a few minutes.';
     }
 
     function loadBodyLog() {
@@ -4491,16 +4555,27 @@
       show(isSr ? 'Mera je na sajtu. Upisujem tab Mera...' : 'Saved on the site. Writing the Mera tab...', 'var(--tertiary)');
       postRowsToSheet(url, [entry], 'body').then(() => {
         show(isSr
-          ? 'Mera je na sajtu i poslata u tab Mera. Da je drugi uređaj vidi, objavi taj tab kao CSV i nalepi adresu u uvozu.'
-          : 'Saved on the site and sent to the Mera tab. Publish that tab as CSV and paste the link in the import dialog so another device can read it.',
+          ? (getBodyCsvUrl()
+            ? 'Mera je na sajtu i poslata u tab Mera. CSV adresa je već sačuvana u ovom pregledaču.'
+            : 'Mera je na sajtu i poslata u tab Mera. U Publish to web izaberi tab Mera, format CSV, i nalepi taj link u polje „CSV taba Mera“. Isti link nalepi i na drugom uređaju.')
+          : (getBodyCsvUrl()
+            ? 'Saved on the site and sent to the Mera tab. The CSV address is already saved in this browser.'
+            : 'Saved on the site and sent to the Mera tab. In Publish to web choose the Mera tab, CSV format, and paste that link into “Mera tab CSV”. Paste the same link on the other device too.'),
           'var(--tertiary)');
       });
+    }
+
+    function bodyCsvHeader(text) {
+      const records = splitCsvRecords(String(text || '').replace(/^\uFEFF/, '').trim());
+      if (!records.length) return [];
+      return parseCsvLine(records[0]).map(cell => String(cell || '').trim().toLowerCase());
     }
 
     function parseBodyCsv(text) {
       const records = splitCsvRecords(String(text || '').replace(/^\uFEFF/, '').trim());
       if (!records.length) return [];
-      const header = parseCsvLine(records[0]).map(cell => String(cell || '').trim().toLowerCase());
+      const header = bodyCsvHeader(text);
+      if (header.includes('workout') || header.includes('exercise')) return [];
       const find = (...names) => header.findIndex(name => names.includes(name));
       let dateCol = find('date');
       let weightCol = find('weight_kg', 'weight');
@@ -4535,13 +4610,17 @@
 
     async function syncBodySheet(options) {
       const url = getBodyCsvUrl();
-      if (!url) return;
+      if (!url) return { ok: false, reason: 'missing' };
       try {
         const response = await fetch(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`, { cache: 'no-store' });
-        if (!response.ok) return;
+        if (!response.ok) return { ok: false, reason: 'http' };
         const text = await response.text();
-        if (!text.trim()) return;
-        mergeBodyRows(parseBodyCsv(text));
+        if (!text.trim()) return { ok: false, reason: 'empty' };
+        const header = bodyCsvHeader(text);
+        if (header.includes('workout') || header.includes('exercise')) return { ok: false, reason: 'workout' };
+        const parsed = parseBodyCsv(text);
+        if (!parsed.length && !header.includes('date')) return { ok: false, reason: 'shape' };
+        mergeBodyRows(parsed);
         renderBodyPanel();
         updateKpis();
         renderProgressionChart();
@@ -4549,8 +4628,10 @@
         renderMuscleAnalytics();
         const search = document.getElementById('workout-search-input');
         handleWorkoutSearch(search ? search.value : '');
+        return { ok: true, count: parsed.length };
       } catch (e) {
         if (!(options && options.silent)) console.warn('Body sheet sync failed', e);
+        return { ok: false, reason: 'fetch' };
       }
     }
 
