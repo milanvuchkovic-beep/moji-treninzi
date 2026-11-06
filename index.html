@@ -810,8 +810,13 @@
         </div>
         <h2 id="g-main-title">Biomehanički Vodiči & Prevencija Povreda Lakta</h2>
         <p style="color: var(--on-surface-variant); font-size: 0.9375rem; max-width: 850px;" id="g-main-desc">
-          Sa visinom od 197 cm i telesnom masom od 116 kg, poluge na zglobovima su znatno duže nego kod prosečnog vežbača. Ovaj vodič definiše pravila hvata, uglova i selekcije sprava za maksimalan stimulans bez oštećenja tetiva.
+          Sa visinom od 197 cm i telesnom masom od 116 kg, poluge na zglobovima su znatno duže nego kod prosečnog vežbača. Ovaj vodič ima pravilo za svaku vežbu iz dnevnika: hvat, opseg i kada stati zbog desnog lakta ili ramena.
         </p>
+        <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; margin-top: var(--space-md);">
+          <input id="guide-search" type="search" placeholder="Pretraži vežbu..." oninput="renderTechniqueGuides()" style="max-width: 360px;">
+          <div id="guide-filters" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+        </div>
+        <p id="guide-count" class="data-label" style="margin: var(--space-sm) 0 0 0;"></p>
       </div>
 
       <div class="card-grid" id="guides-grid">
@@ -1194,7 +1199,7 @@
         hHistTitle: "Dnevnik Treninga & Detaljni Podaci",
         hHistDesc: "Pretražite sve zabeležene sesije, serije, kilaže i proprioceptivne napomene.",
         gMainTitle: "Biomehanički Vodiči & Prevencija Povreda Lakta",
-        gMainDesc: "Sa visinom od 197 cm i telesnom masom od 116 kg, poluge na zglobovima su znatno duže nego kod prosečnog vežbača. Ovaj vodič definiše pravila hvata, uglova i selekcije sprava za maksimalan stimulans bez oštećenja tetiva.",
+        gMainDesc: "Sa visinom od 197 cm i telesnom masom od 116 kg, poluge na zglobovima su znatno duže nego kod prosečnog vežbača. Ovaj vodič ima pravilo za svaku vežbu iz dnevnika: hvat, opseg i kada stati zbog desnog lakta ili ramena.",
         searchPlaceholder: "Pretraži po vežbi ili naslovu...",
         filter30: "30 Dana",
         filter90: "3 Meseca",
@@ -1278,7 +1283,7 @@
         hHistTitle: "Workout Log & Session Explorer",
         hHistDesc: "Search all logged workouts, set tables, weights, and proprioceptive notes.",
         gMainTitle: "Biomechanical Technique & Joint Longevity Guides",
-        gMainDesc: "At 197 cm height and 116 kg bodyweight, limb lever lengths demand specialized angles. This guide provides strict execution rules to maximize stimulus without tendon irritation.",
+        gMainDesc: "At 197 cm and 116 kg the levers are long. This guide has a rule for every exercise in the log: grip, range, and when to stop for the right elbow or shoulder.",
         searchPlaceholder: "Search by exercise or title...",
         filter30: "30 Days",
         filter90: "3 Months",
@@ -2495,6 +2500,897 @@
     /* --------------------------------------------------------------------------
        TECHNIQUE GUIDES POPUPS & CARDS
        -------------------------------------------------------------------------- */
+
+    const GUIDE_ALIAS = {
+      "Pull Up": "Pull Up (Neutral Grip)",
+      "Rowing Machine": "Concept2 Rowing (Damper 10)"
+    };
+    let guideGroup = "all";
+
+    function guidePatternId(name) {
+      const exact = {
+        "Riljanje": "other",
+        "Delts Upward ⬆️": "raise",
+        "Rowing Torso": "back_ext",
+        "Around The World": "fly",
+        "Plate Squeeze (Svend Press)": "fly",
+        "Squat Row": "row",
+        "Man Maker": "complex",
+        "Farmers Walk": "carry",
+        "Dead Hang": "deadhang",
+        "Warm Up": "mobility",
+        "Stretching": "mobility",
+        "Yoga": "mobility",
+        "Hollow Rock": "core",
+        "Wall Sit": "core",
+        "Ab Scissors": "core",
+        "Ab Wheel": "core",
+        "Bicycle Crunch": "core",
+        "Elbow to Knee": "core",
+        "Oblique Crunch": "core",
+        "Side Bend (Dumbbell)": "core",
+        "Russian Twist (Weighted)": "core",
+        "Torso Rotation": "core",
+        "Cable Twist (Down to up)": "core",
+        "Cable Twist (Up to down)": "core",
+        "Lying Leg Raise": "core",
+        "High Knees": "plyo",
+        "Jumping Jack": "plyo",
+        "Ball Slams": "plyo",
+        "Burpee": "plyo",
+        "Battle Ropes": "plyo",
+        "Kettlebell Swing": "swing",
+        "Dumbbell Snatch": "olympic",
+        "Clean and Press": "olympic",
+        "Push Press": "ohp",
+        "Gorilla Row (Kettlebell)": "row"
+      };
+      if (exact[name]) return exact[name];
+      const n = (name || "").toLowerCase();
+      if (/rowing machine|rowerg|concept\s*2/.test(n)) return "row_erg";
+      if (/treadmill/.test(n)) return "treadmill";
+      if (/running|walking|hiking/.test(n)) return "run_walk";
+      if (/elliptical|spinning|stair|swim/.test(n)) return "cycle";
+      if (/stretch|yoga|warm up|mobility/.test(n)) return "mobility";
+      if (/dead hang/.test(n)) return "deadhang";
+      if (/dip/.test(n)) return "dip";
+      if (/sissy/.test(n)) return "squat";
+      if (/leg extension/.test(n)) return "leg_ext";
+      if (/leg curl/.test(n)) return "leg_curl";
+      if (/skull|pushdown|kickback|tricep/.test(n)) return "tricep";
+      if (/curl/.test(n)) return "curl";
+      if (/upright row|shrug/.test(n)) return "shrug";
+      if (/face pull|rear delt|pullapart|y raise|reverse fly/.test(n)) return "rear";
+      if (/lateral raise|front raise|plate front/.test(n)) return "raise";
+      if (/arnold|overhead press|shoulder press|push press|seated shoulder/.test(n)) return "ohp";
+      if (/pullover/.test(n)) return "pullover";
+      if (/pull up|chin up|ring pull/.test(n)) return "pullup";
+      if (/pulldown|lat pull/.test(n)) return "pulldown";
+      if (/fly|crossover|pec deck|butterfly|svend|around the world/.test(n)) return "fly";
+      if (/push.?up|pushup/.test(n)) return "pushup";
+      if (/bench|chest press|hex press|floor press/.test(n)) {
+        if (/dumbbell|hex press|floor press/.test(n)) return "bench_db";
+        if (/machine/.test(n) && !/smith/.test(n)) return "machine_press";
+        return "bench_bar";
+      }
+      if (/row/.test(n)) return "row";
+      if (/romanian|deadlift/.test(n)) return "deadlift";
+      if (/leg press/.test(n)) return "legpress";
+      if (/calf/.test(n)) return "calf";
+      if (/lunge|split squat|bulgarian/.test(n)) return "lunge";
+      if (/squat/.test(n)) return "squat";
+      if (/hip |glute|thrust|kickback on floor/.test(n)) return "hip";
+      if (/hanging|leg raise|knee raise/.test(n)) return "hangcore";
+      if (/crunch|plank|ab wheel|ab scissor|\btwist|side bend|hollow|scissors|elbow to knee|torso|oblique|bicycle/.test(n)) return "core";
+      if (/back extension/.test(n)) return "back_ext";
+      if (/swing/.test(n)) return "swing";
+      if (/snatch|clean and press|man maker/.test(n)) return "olympic";
+      if (/burpee|slam|battle rope|jumping jack|high knee/.test(n)) return "plyo";
+      if (/farmer/.test(n)) return "carry";
+      return "other";
+    }
+
+    function gp(srT, srR, srC, enT, enR, enC) {
+      return { sr: { target: srT, risk: srR, keyCues: srC }, en: { target: enT, risk: enR, keyCues: enC } };
+    }
+
+    const GUIDE_PATTERNS = {
+      bench_bar: gp(
+        "Prsa, šipka",
+        "Duge ruke i fiksna šipka opterećuju desno rame i lakat",
+        [
+          "Lopatice skupi i pritisni u klupu pre nego što šipka krene dole.",
+          "Laktovi idu 45° do 70° od trupa. T-položaj od 90° ne radiš.",
+          "Na 197 cm podlaktice su vertikalne u donjoj tački. Na kosoj klupi smanji nagib čim prednje rame preuzme pokret.",
+          "Bol u desnom ramenu ili laktu prekida seriju. Sledeći izbor su bučice pod 45°."
+        ],
+        "Chest, barbell",
+        "Long arms and a fixed bar load the right shoulder and elbow",
+        [
+          "Set the shoulder blades down and pin them into the bench before the bar descends.",
+          "Elbows stay 45° to 70° from the torso. A 90° T-position is out.",
+          "At 197 cm the forearms are vertical at the bottom. On an incline, lower the bench angle as soon as the front shoulder takes over.",
+          "Pain in the right shoulder or elbow ends the set. The next choice is 45° dumbbells."
+        ]
+      ),
+      bench_db: gp(
+        "Prsa, bučice",
+        "Nizak rizik za lakat ako hvat ostane poluneutralan",
+        [
+          "Hvat oko 45°, dlanovi gledaju jedan ka drugom onoliko koliko lakat traži.",
+          "Spuštaj dok je nadlaktica u ravni trupa. Rame ne propada iza tela.",
+          "Hex press drži bučice stisnute i laktove bliže rebrima.",
+          "Floor press staje na podu namerno, da rame ne ide u krajnji opseg."
+        ],
+        "Chest, dumbbells",
+        "Low elbow risk when the grip stays semi-neutral",
+        [
+          "Use about a 45° grip, palms turned in as far as the elbow wants.",
+          "Lower until the upper arm is level with the torso. Do not let the shoulder drop behind the body.",
+          "A hex press keeps the dumbbells touching and the elbows closer to the ribs.",
+          "A floor press stops on the floor on purpose, so the shoulder never reaches its end range."
+        ]
+      ),
+      machine_press: gp(
+        "Prsa, mašina",
+        "Fiksan hvat mašine ume da uvije lakat",
+        [
+          "Sedište podesi tako da ručke krenu iz visine sredine prsa, ne iznad ključne kosti.",
+          "Lopatice ostaju skupljene. Potiljak se ne gura u naslon da bi se prošla serija.",
+          "Ako pronirani hvat mašine zateže desni lakat, smanji težinu ili pređi na bučice.",
+          "Ispravi ruku do kraja bez udarca u zaključan lakat."
+        ],
+        "Chest, machine",
+        "A fixed machine grip can twist the elbow",
+        [
+          "Set the seat so the handles start at mid-chest, not above the collarbone.",
+          "Keep the shoulder blades set. Do not drive the head into the pad to finish a set.",
+          "If the machine's pronated grip irritates the right elbow, lower the weight or move to dumbbells.",
+          "Finish the arm straight without banging the elbow into a locked joint."
+        ]
+      ),
+      fly: gp(
+        "Prsa, razvlačenje",
+        "Pec deck i chest fly često prenose težinu 1:1, a sedište zna da bude nisko za 197 cm",
+        [
+          "Laktovi su blago savijeni i taj ugao se ne menja kroz pokret.",
+          "Na mašini sa prenosom 1:1 broj na displeju je puna težina na rukama. Ne juriti kilogram kao na sajli.",
+          "Ne spuštaj ispod linije na kojoj prednje rame preuzima istezanje.",
+          "Ako je sedište napravljeno za nižeg čoveka i ne može da se digne, skrati opseg umesto da vučeš rame naviše."
+        ],
+        "Chest, fly",
+        "The pec deck and chest-fly machines often transmit the load 1:1, and the seat can sit low for 197 cm",
+        [
+          "Keep a soft bend in the elbows and do not let that angle change.",
+          "On a 1:1 machine the number on the stack is the full load in your hands. Do not chase it like a cable stack.",
+          "Do not lower past the line where the front shoulder takes the stretch.",
+          "If the seat is built for a shorter person and will not rise, shorten the range instead of shrugging the shoulder up."
+        ]
+      ),
+      pushup: gp(
+        "Prsa i triceps, sklek",
+        "Duge poluge prave veliki moment u ramenu kad kukovi padnu",
+        [
+          "Šake ispod ramena ili malo uže, laktovi ka rebrima.",
+          "Telo je jedna linija od potiljka do peta. Na 197 cm kukovi prvi propadaju, pa ih drži u visini ramena.",
+          "Dijamant i uzak hvat više opterećuju lakat. Skrati donju tačku čim tetiva zateže.",
+          "Ručke za sklekove daju neutralan hvat i to je bolji izbor za desni lakat."
+        ],
+        "Chest and triceps, push-up",
+        "Long levers put a large moment on the shoulder once the hips sag",
+        [
+          "Hands under the shoulders or slightly narrower, elbows toward the ribs.",
+          "The body is one line from the back of the head to the heels. At 197 cm the hips sag first, so keep them level with the shoulders.",
+          "Diamond and narrow grips load the elbow more. Shorten the bottom as soon as the tendon tightens.",
+          "Push-up handles give a neutral grip and are the better choice for the right elbow."
+        ]
+      ),
+      dip: gp(
+        "Prsa ili triceps, propadanje",
+        "Sa 116 kg rame lako preuzme pokret čim se propadne preduboko",
+        [
+          "Blagi nagib napred za grudi, uspravniji trup za triceps.",
+          "Stani pre ugla u kom prednje rame ide napred i uvis. U dnevniku su propadanja već prekidana zbog ramena.",
+          "Na assisted mašini i na seated dip mašini lakat drži isti ugao, bez njihanja.",
+          "Čistih par ponavljanja vredi više od odskoka sa dna."
+        ],
+        "Chest or triceps, dip",
+        "At 116 kg the shoulder takes over as soon as the dip gets too deep",
+        [
+          "A small lean forward is for the chest. A more upright torso is for the triceps.",
+          "Stop before the angle where the front shoulder rolls forward and up. Dips in the log have already been cut short for the shoulder.",
+          "On the assisted and seated dip machines keep the elbow angle steady, with no swing.",
+          "A few clean reps are worth more than bouncing out of the bottom."
+        ]
+      ),
+      pullup: gp(
+        "Leđa, zgib",
+        "Širok pronirani hvat na 116 kg opterećuje lakat",
+        [
+          "Neutralne paralelne ručke su podrazumevani hvat. Pronirani široki hvat samo ako lakat ćuti.",
+          "Vuci laktove ka rebrima, ne bradu preko šipke bicepsom.",
+          "Bez kipinga. Spuštanje traje oko dve sekunde.",
+          "Assisted i ring varijanta važe isto pravilo: pomoć sme da postoji, zamah ne."
+        ],
+        "Back, pull-up",
+        "A wide pronated grip at 116 kg loads the elbow",
+        [
+          "Parallel neutral handles are the default grip. A wide pronated grip only if the elbow stays quiet.",
+          "Pull the elbows toward the ribs, not the chin over the bar with the biceps.",
+          "No kipping. The lower takes about two seconds.",
+          "Assisted and ring versions follow the same rule: help is allowed, swing is not."
+        ]
+      ),
+      pulldown: gp(
+        "Leđa, lat pulldown",
+        "Sedište i hvat lako nameste rame u sleganje",
+        [
+          "Podesi sedište tako da ruka krene iz visećeg položaja, ne iz podignutog ramena.",
+          "Grudi gore, blago zavaljen trup, šipka ka gornjim grudima. Ne iza glave.",
+          "Neutralni ili uži hvat čuva desni lakat bolje od vrlo širokog.",
+          "Ne njiši kukovima da bi prošao poslednja ponavljanja."
+        ],
+        "Back, lat pulldown",
+        "The seat and the grip can park the shoulder in a shrug",
+        [
+          "Set the seat so the arm starts from a hang, not from a shrugged shoulder.",
+          "Chest up, a slight lean back, bar to the upper chest. Not behind the head.",
+          "A neutral or narrower grip spares the right elbow better than a very wide one.",
+          "Do not swing the hips to finish the last reps."
+        ]
+      ),
+      row: gp(
+        "Leđa, veslanje tegom",
+        "Dug trup hoće da zaokruži donja leđa da bi teg došao dalje",
+        [
+          "Trup je fiksiran, grudi blago otvorene. Ne zaokružuj donja leđa da bi šipka otišla dalje.",
+          "Prvo skupi lopaticu, pa savij ruku. Vuče lakat ka kuku, ne šaka ka ramenu.",
+          "Neutralni ili poluneutralni hvat ako desni lakat zateže.",
+          "Na sajli i mašini grudi ostaju na naslonu. Ako naslon nije dovoljno visok za 197 cm, skrati potez."
+        ],
+        "Back, row",
+        "A long torso will round the low back to make the weight travel farther",
+        [
+          "The torso stays set, chest slightly open. Do not round the low back to send the bar farther.",
+          "Set the shoulder blade first, then bend the arm. The elbow drives toward the hip, not the hand toward the shoulder.",
+          "Use a neutral or semi-neutral grip if the right elbow tightens.",
+          "On a cable or machine keep the chest on the pad. If the pad is short for 197 cm, shorten the stroke."
+        ]
+      ),
+      pullover: gp(
+        "Leđa i prsa, pulover",
+        "Predubok luk otvara rame i diže donja leđa",
+        [
+          "Laktovi blago savijeni, pokret ide iz ramena, ne iz dodatnog savijanja ruke.",
+          "Rebra dole. Donja leđa nisu most.",
+          "Stani kad nadlaktica prođe uho ako prednje rame štipa.",
+          "Ovaj pokret sme da otvori grudni koš, ali samo dok disanje ostane mirno i leđa ne preuzmu luk."
+        ],
+        "Back and chest, pullover",
+        "Too deep an arc opens the shoulder and lifts the low back",
+        [
+          "Elbows stay softly bent. The motion comes from the shoulder, not from extra bending of the arm.",
+          "Ribs down. The low back is not a bridge.",
+          "Stop once the upper arm passes the ear if the front shoulder pinches.",
+          "The movement may open the rib cage, but only while breathing stays calm and the back does not take the arch."
+        ]
+      ),
+      rear: gp(
+        "Zadnje rame i lopatica",
+        "Preniska težina nije problem. Prevelika pretvori vežbu u trzaj",
+        [
+          "Face pull: uže ka licu, laktovi visoko, palčevi se okreću unazad.",
+          "Rear delt mašina: sedište tako da ručke budu u visini ramena.",
+          "Band pullapart ide u visini grudne kosti, lopatice se sastave pozadi.",
+          "Ovo je nega ramena. Serija staje čim postane zamah."
+        ],
+        "Rear shoulder and scapula",
+        "Too little weight is fine. Too much turns the drill into a jerk",
+        [
+          "Face pull: rope toward the face, elbows high, thumbs turn backward.",
+          "Rear-delt machine: set the seat so the handles sit at shoulder height.",
+          "A band pull-apart stays at chest-bone height until the shoulder blades meet behind you.",
+          "This is shoulder maintenance. The set ends as soon as it becomes a swing."
+        ]
+      ),
+      ohp: gp(
+        "Ramena, potisak iznad glave",
+        "Desno rame je već prekidalo potisak. Krsta ne smeju da nadoknade opseg",
+        [
+          "Rebra skupljena. Ne izvijaj krsta da bi teg prošao glavu.",
+          "Teg ide blizu lica. U donjoj tački laktovi su malo ispred šipke.",
+          "Bol u desnom ramenu prekida seriju. U dnevniku je mašinski potisak već zaustavljan zbog toga.",
+          "Arnold press rotira pod kontrolom, bez trzaja na dnu."
+        ],
+        "Shoulders, overhead press",
+        "The right shoulder has already stopped presses. The low back must not buy extra range",
+        [
+          "Ribs stacked. Do not arch the low back to get the weight past the head.",
+          "The weight stays close to the face. At the bottom the elbows sit slightly in front of the bar.",
+          "Pain in the right shoulder ends the set. A machine press in the log has already been stopped for that.",
+          "An Arnold press rotates under control, with no bounce at the bottom."
+        ]
+      ),
+      raise: gp(
+        "Srednje ili prednje rame",
+        "Duga ruka pravi veliki moment i na lakoj bučici",
+        [
+          "Lateralno: mali nagib trupa, palac blago nadole, šaka ne ide iznad visine ramena.",
+          "Prednje dizanje ide bez zamaha iz kukova. Jednoručno je lakše kontrolisati.",
+          "Lakša bučica i miran lakat bolji su od težine koja se baca.",
+          "Na mašini sedište mora da bude dovoljno visoko da nadlaktica krene iz opuštenog ramena."
+        ],
+        "Side or front shoulder",
+        "A long arm makes a large moment even with a light dumbbell",
+        [
+          "Lateral raise: a small torso lean, thumb slightly down, hand not above shoulder height.",
+          "A front raise has no hip swing. One arm at a time is easier to control.",
+          "A lighter dumbbell and a quiet elbow beat a weight that has to be thrown.",
+          "On a machine the seat has to be high enough that the upper arm starts from a relaxed shoulder."
+        ]
+      ),
+      shrug: gp(
+        "Trapez i gornji trap",
+        "Visok upright row štipa rame",
+        [
+          "Shrug ide pravo gore ka ušima, bez kotrljanja ramena napred.",
+          "Kratko zadržavanje gore, vrat opušten, brada se ne gura napred.",
+          "Upright row staje u visini donjeg dela grudi. Laktovi iznad ramena su predaleko.",
+          "Trap bar drži šake sa strane i manje uvija rame nego uska šipka."
+        ],
+        "Traps",
+        "A high upright row pinches the shoulder",
+        [
+          "Shrug straight up toward the ears, without rolling the shoulders forward.",
+          "A short pause at the top, neck relaxed, chin not shoved forward.",
+          "An upright row stops around the lower chest. Elbows above the shoulders are too far.",
+          "A trap bar keeps the hands at the sides and twists the shoulder less than a narrow bar."
+        ]
+      ),
+      curl: gp(
+        "Biceps i podlaktica",
+        "Potpuno okrenut dlan jače uvija desni lakat od neutralnog hvata",
+        [
+          "Nadlaktica miruje uz rebro. Zamah kukom se ne broji.",
+          "Zottman: gore dlan nagore, na vrhu rotacija, dole dlan nadole u oko tri sekunde.",
+          "Hammer i neutralni hvat su podrazumevani kad desni lakat prijavljuje istezanje.",
+          "Preacher, EZ šipka i mašina ne idu u krajnji otvor lakta ako se tu javi bol. Stani ranije."
+        ],
+        "Biceps and forearm",
+        "A fully supinated palm twists the right elbow more than a neutral grip",
+        [
+          "The upper arm stays against the rib. A hip swing does not count.",
+          "Zottman: palms up on the way up, rotate at the top, palms down for about three seconds on the way down.",
+          "Hammer and neutral grips are the default when the right elbow reports a stretch.",
+          "Preacher, EZ-bar, and machine curls do not go to a fully opened elbow if that is where it hurts. Stop earlier."
+        ]
+      ),
+      tricep: gp(
+        "Triceps",
+        "Istezanje iznad glave na dugoj ruci brzo nađe tetivu lakta",
+        [
+          "Pushdown: laktovi uz telo, savija se samo lakat. Ne naginji se preko užeta.",
+          "Overhead ekstenzija jako isteže tetivu. Skrati donji položaj čim osetiš istezanje umesto mišića.",
+          "Skullcrusher ide ka čelu ili malo iza glave, laktovi gledaju u plafon i ne beže u stranu.",
+          "Kickback: nadlaktica paralelna sa podom, mala težina, mirno istezanje unazad."
+        ],
+        "Triceps",
+        "An overhead stretch on a long arm finds the elbow tendon quickly",
+        [
+          "Pushdown: elbows against the sides, only the elbow bends. Do not lean over the rope.",
+          "An overhead extension stretches the tendon hard. Shorten the bottom as soon as you feel stretch instead of muscle.",
+          "A skullcrusher travels toward the forehead or just behind the head, elbows pointed at the ceiling and not drifting out.",
+          "Kickback: upper arm parallel to the floor, light weight, a quiet stretch backward."
+        ]
+      ),
+      squat: gp(
+        "Noge, čučanj",
+        "Duge natkolenice traže da peta ostane dole bez okruglih leđa",
+        [
+          "Stopala u širini kukova ili malo šire, kolena prate prste.",
+          "Dubina dolazi iz kuka unazad i kolena napred. Pete ostaju na podu. Ako peta beži, proširi stav ili uzmi goblet da trup ostane uspravniji.",
+          "Šipka leži na trapezu, ne na vratu. Pogled ide napred.",
+          "Sissy i jump varijante doskaču tiho. Koleno ne ulazi unutra."
+        ],
+        "Legs, squat",
+        "Long femurs ask the heel to stay down without rounding the back",
+        [
+          "Feet at hip width or a little wider, knees tracking over the toes.",
+          "Depth comes from the hip back and the knee forward. Heels stay down. If a heel lifts, widen the stance or use a goblet so the torso stays taller.",
+          "The bar sits on the traps, not the neck. Look forward.",
+          "Sissy and jump versions land quietly. The knee does not collapse inward."
+        ]
+      ),
+      lunge: gp(
+        "Noge, iskorak",
+        "Prekratak korak gura koleno preko prstiju",
+        [
+          "Korak dovoljno dug da koleno prednje noge ostane iznad skočnog zgloba.",
+          "Zadnje koleno ide ka podu bez udarca. Trup je blago naget.",
+          "Bugarski čučanj: prednje stopalo dovoljno ispred klupe. Bučice u rukama, ne na ramenima ako rame već prigovara.",
+          "Iskorak u skoku doskače tiho, kolena u liniji prstiju."
+        ],
+        "Legs, lunge",
+        "Too short a step pushes the knee past the toes",
+        [
+          "Step long enough that the front knee stays over the ankle.",
+          "The back knee travels toward the floor without a bang. The torso leans slightly.",
+          "Bulgarian split squat: the front foot is far enough ahead of the bench. Hold the dumbbells, do not put them on the shoulders if the shoulder is already complaining.",
+          "A jumping lunge lands quietly, knees in line with the toes."
+        ]
+      ),
+      deadlift: gp(
+        "Zadnja loža i leđa, deadlift",
+        "Visok kuk na startu je normalan na 197 cm. Lemljenje leđa nije",
+        [
+          "Leđa su neutralna pre nego što se težina odlepi od poda. Na ravnoj šipci ona ide uz potkolenice.",
+          "Ne spuštaj kuk u dubok čučanj pa vući leđima. Na ovoj visini kuk ostaje relativno visoko.",
+          "Trap bar drži šake sa strane i trup uspravnijim. To je bolji izbor kad je cilj snaga bez velikog momenta na krstima.",
+          "Rumunski: mekana kolena, šipka klizi niz butine, stati čim leđa više ne mogu da ostanu ravna."
+        ],
+        "Hamstrings and back, deadlift",
+        "A high hip at the start is normal at 197 cm. Gluing the back into a round is not",
+        [
+          "The back is neutral before the weight leaves the floor. On a straight bar it stays against the shins.",
+          "Do not drop the hips into a deep squat and then pull with the back. At this height the hips stay relatively high.",
+          "A trap bar keeps the hands at the sides and the torso taller. That is the better choice when the goal is strength without a large moment on the low back.",
+          "Romanian: soft knees, bar sliding down the thighs, stop as soon as the back can no longer stay flat."
+        ]
+      ),
+      legpress: gp(
+        "Noge, leg press",
+        "Donja tačka lako odlepi krsta sa naslona",
+        [
+          "Stopala u sredini platforme, dovoljno visoko da kolena u dnu ne ulaze u grudi.",
+          "Krsta ostaju zalepljena za naslon. Čim karlice krene da se odlepi, to je kraj opsega.",
+          "Visoka kosina mašine povećava dubinu. Kraći hod je bezbedniji od punog spuštanja.",
+          "Ne zaključavaj kolena udarcem na vrhu."
+        ],
+        "Legs, leg press",
+        "The bottom position easily peels the low back off the pad",
+        [
+          "Feet in the middle of the platform, high enough that the knees do not jam into the chest at the bottom.",
+          "The low back stays glued to the pad. The moment the pelvis starts to lift, that is the end of the range.",
+          "A steep machine adds depth. A shorter stroke is safer than burying the sled.",
+          "Do not bang the knees into a lockout at the top."
+        ]
+      ),
+      leg_ext: gp(
+        "Kvadriceps, ekstenzija",
+        "Osa mašine koja ne prolazi kroz koleno šiba zglob",
+        [
+          "Naslon podesi tako da osa mašine prođe kroz koleno.",
+          "Pokret je miran. Težina koja traži trzaj je prevelika.",
+          "Ne zaključavaj koleno udarcem na vrhu.",
+          "Ako koleno štipa u poslednjim stepenima, skrati vrh, ne dodaj težinu."
+        ],
+        "Quadriceps, extension",
+        "A machine axis that misses the knee whips the joint",
+        [
+          "Set the back pad so the machine's axis passes through the knee.",
+          "The motion stays quiet. A weight that needs a jerk is too heavy.",
+          "Do not bang the knee into a lockout at the top.",
+          "If the knee pinches in the last degrees, shorten the top instead of adding weight."
+        ]
+      ),
+      leg_curl: gp(
+        "Zadnja loža",
+        "Podizanje kuka pretvara vežbu u donja leđa",
+        [
+          "Kuk ostaje na naslonu dok peta vuče ka zadnjici.",
+          "Ne diži kuk da bi prošao poslednja ponavljanja.",
+          "Vraćaj težinu sporo, ne puštaj ploču da padne.",
+          "Ako mašina vuče koleno u stranu, smanji opseg pre nego što smanjuješ ponavljanja."
+        ],
+        "Hamstrings",
+        "Lifting the hip turns the exercise into the low back",
+        [
+          "The hip stays on the pad while the heel pulls toward the glute.",
+          "Do not lift the hip to finish the last reps.",
+          "Return the weight slowly. Do not let the stack drop.",
+          "If the machine pulls the knee sideways, shorten the range before you cut the reps."
+        ]
+      ),
+      legiso: gp(
+        "Butina, izolacija",
+        "Osa mašine koja ne prolazi kroz koleno šiba zglob",
+        [
+          "Ekstenzija: naslon podesi tako da osa mašine prođe kroz koleno.",
+          "Leg curl: kuk ostaje na naslonu, peta vuče ka zadnjici, kuk se ne diže.",
+          "Sissy čučanj ide sporo. Koleno prati prste i ne propada unutra.",
+          "Težina koja traži trzaj je prevelika za izolaciju."
+        ],
+        "Thigh, isolation",
+        "A machine axis that misses the knee whips the joint",
+        [
+          "Extension: set the back pad so the machine's axis passes through the knee.",
+          "Leg curl: the hip stays on the pad, the heel pulls toward the glute, the hip does not lift.",
+          "A sissy squat moves slowly. The knee tracks over the toes and does not collapse inward.",
+          "A weight that needs a jerk is too heavy for an isolation."
+        ]
+      ),
+      calf: gp(
+        "Listovi",
+        "Poskakivanje skida istezanje i opterećuje Ahil u trzaju",
+        [
+          "Puna pauza dole u istezanju i kratko zadržavanje gore.",
+          "Na stojećoj varijanti koleno je blago mekano, ne zaključano.",
+          "Jednonožno: drži se oslonca i ne uvijaj stopalo unutra.",
+          "Na mašini platforma leži preko jagodica stopala, ne preko prstiju."
+        ],
+        "Calves",
+        "Bouncing removes the stretch and loads the Achilles in a jerk",
+        [
+          "A full pause in the bottom stretch and a short hold at the top.",
+          "On the standing version the knee stays softly bent, not locked.",
+          "Single-leg: hold a support and do not roll the foot inward.",
+          "On a machine the platform sits across the ball of the foot, not across the toes."
+        ]
+      ),
+      hip: gp(
+        "Kuk i zadnjica",
+        "Luk u donjim leđima ukrade pokret zadnjici",
+        [
+          "Abdukcija i adukcija: leđa na naslonu, pokret iz kuka, trup se ne naginje da bi broj porastao.",
+          "Most i hip thrust: brada skupljena, rebra dole, stisak zadnjice gore.",
+          "Stani u pravoj liniji kuka. Prelazak u jak luk preuzimaju donja leđa.",
+          "Kickback na podu: koleno savijeno, peta ka plafonu, karlice mirne."
+        ],
+        "Hip and glutes",
+        "An arch in the low back steals the movement from the glutes",
+        [
+          "Abduction and adduction: back on the pad, motion from the hip, no leaning the torso to make the number bigger.",
+          "Bridge and hip thrust: chin tucked, ribs down, glutes squeezed at the top.",
+          "Stop at a straight line through the hip. Passing into a hard arch hands the work to the low back.",
+          "A floor kickback: knee bent, heel toward the ceiling, pelvis still."
+        ]
+      ),
+      hangcore: gp(
+        "Trbuh, vis",
+        "116 kg na šipci zamori hvat i lakat pre trbuha",
+        [
+          "Vis neutralnim hvatom ili sa kaiševima ako lakat ne voli šipku.",
+          "Kolena ili noge idu ka grudima rotacijom karlice, ne zamahom.",
+          "Ako šake popuste pre trbuha, serija je gotova.",
+          "Ne ulazi u vis odmah posle dead hanga ako je lakat već umoran."
+        ],
+        "Abs, hang",
+        "116 kg on the bar fatigues the grip and the elbow before the abs",
+        [
+          "Hang from a neutral grip, or use straps if the elbow dislikes the bar.",
+          "Knees or legs travel toward the chest by rotating the pelvis, not by swinging.",
+          "If the hands give out before the abs, the set is over.",
+          "Do not go straight into a hang after dead hangs if the elbow is already tired."
+        ]
+      ),
+      core: gp(
+        "Trup",
+        "Dug trup prvo izgubi položaj u kukovima ili u vratu",
+        [
+          "Crunch i mašina: rebra ka karlici, vrat opušten, ruke ne vuku glavu.",
+          "Plank: potiljak, leđa i pete u jednoj liniji. Kukove drži u visini ramena.",
+          "Ab wheel kreće sa kolena dok možeš da vratiš točak bez uvijanja donjih leđa.",
+          "Rotacije i side bend idu iz rebara. Karlice ostaju mirne, a rame ne ide u krajnji položaj."
+        ],
+        "Trunk",
+        "A long torso loses position at the hips or the neck first",
+        [
+          "Crunch and machine: ribs toward the pelvis, neck relaxed, the hands do not pull the head.",
+          "Plank: the back of the head, the back, and the heels in one line. Keep the hips level with the shoulders.",
+          "Start the ab wheel from the knees until you can bring the wheel back without the low back folding.",
+          "Twists and side bends come from the ribs. The pelvis stays still and the shoulder does not chase its end range."
+        ]
+      ),
+      back_ext: gp(
+        "Donja leđa i kuk",
+        "Prelazak preko prave linije gnječi donja leđa",
+        [
+          "Jastuk mašine ispod kukova. Pokret je ispravljanje iz kuka.",
+          "Stani kad je telo u pravoj liniji. Ne zabacuj se u luk.",
+          "Ruke na grudima dok se položaj ne smiri.",
+          "Ako osetiš pritisak u krstima umesto rada u leđima, skrati opseg."
+        ],
+        "Low back and hip",
+        "Passing a straight line compresses the low back",
+        [
+          "The machine pad sits below the hips. The motion is unfolding from the hip.",
+          "Stop when the body is a straight line. Do not throw into an arch.",
+          "Hands on the chest until the position is steady.",
+          "If you feel pressure in the low back instead of work in the back muscles, shorten the range."
+        ]
+      ),
+      row_erg: gp(
+        "Concept2, damper 10",
+        "Umor popusti leđa i stisne hvat",
+        [
+          "Potez: noge, pa kuk, pa ruke.",
+          "Povratak: ruke, pa kuk, pa noge.",
+          "Hvat opušten. Stisak do belih zglobova zamara lakat.",
+          "Duga noga na 197 cm daje veliki hod. Ne skupljaj kolena da bi brže okrenuo tempo."
+        ],
+        "Concept2, damper 10",
+        "Fatigue lets the back go and the grip clamp down",
+        [
+          "Drive: legs, then hips, then arms.",
+          "Recovery: arms, then hips, then legs.",
+          "Keep the grip relaxed. A white-knuckle hold fatigues the elbow.",
+          "A long leg at 197 cm gives a long drive. Do not pinch the knees in to turn the rate up."
+        ]
+      ),
+      treadmill: gp(
+        "Traka",
+        "Predugačak korak na 197 cm udara u koleno",
+        [
+          "Blagi nagib i hod uzbrdo čuvaju Ahil bolje od dugog koraka po ravnom.",
+          "Stopalo se spušta ispod kuka, ne daleko ispred tela.",
+          "Ne drži se rukohvata osim zbog ravnoteže. Ruke na šini gase nagib.",
+          "Brze izmene radiš hodom. Ne skači sa trake da bi uhvatio interval."
+        ],
+        "Treadmill",
+        "Too long a stride at 197 cm bangs the knee",
+        [
+          "A slight incline and uphill walking spare the Achilles better than a long stride on the flat.",
+          "The foot lands under the hip, not far out in front of the body.",
+          "Do not hold the rails except for balance. Hands on the rail cancel the incline.",
+          "Fast changes are walked. Do not jump off the belt to catch an interval."
+        ]
+      ),
+      run_walk: gp(
+        "Hod, trčanje, planina",
+        "Nizbrdo i dugačak korak skupljaju udarac u kolenu",
+        [
+          "Uzbrdo kraći korak. Nizbrdo tiši doskok, stopalo ispod kuka.",
+          "Lagani aerobni rad ostaje u zoni u kojoj možeš da pričaš. Oko 120 do 130 otkucaja si već merio na brzom hodu.",
+          "Na stazi ili planini štapovi skidaju deo težine sa kolena na dugom spustu.",
+          "Bol u zglobu menja nagib ili dužinu koraka odmah, ne na kraju ture."
+        ],
+        "Walk, run, hike",
+        "Downhill and a long stride collect impact in the knee",
+        [
+          "Shorter steps uphill. A quieter landing downhill, with the foot under the hip.",
+          "Easy aerobic work stays in a zone where you can talk. You have already measured about 120 to 130 bpm on a fast walk.",
+          "On a trail, poles take some of the load off the knees on a long descent.",
+          "Joint pain changes the grade or the stride immediately, not at the end of the outing."
+        ]
+      ),
+      cycle: gp(
+        "Bicikl, eliptični, stepenice, plivanje",
+        "Predugačak položaj vuče koleno ili prednje rame",
+        [
+          "Spinning i bicikl: u donjoj tački koleno je blago savijeno, ne zaključano. Sedište digni dok kuk to dozvoljava.",
+          "Eliptični: peta sme da se spusti. Ne hodaj samo na prstima.",
+          "Stepenice: celo stopalo na stepenik. Drške su za ravnotežu, ne da se vučeš rukama.",
+          "U bazenu kraći ulaz šake ispred ramena ako dugi zamah boli prednje rame. Dužina basena kod tebe nije uvek standardna, pa gledaj napor, ne samo broj na satu."
+        ],
+        "Bike, elliptical, stairs, swim",
+        "Too long a setup pulls on the knee or the front shoulder",
+        [
+          "Spinning and bike: at the bottom the knee is softly bent, not locked. Raise the seat as far as the hip allows.",
+          "Elliptical: the heel is allowed to drop. Do not stay up on the toes.",
+          "Stairs: the whole foot lands on the step. The handles are for balance, not for hauling yourself up with the arms.",
+          "In the pool use a shorter hand entry in front of the shoulder if a long stroke hurts the front of the shoulder. Your pool length is not always standard, so judge effort, not only the console."
+        ]
+      ),
+      swing: gp(
+        "Kuk, swing",
+        "Girja ili bučica dignuta ramenima umesto kukom udara donja leđa",
+        [
+          "Šarka u kuku, kolena mekana, teg ide između natkolenica.",
+          "Eksplozivan kuk. Ruke su konopac, ne dizalica.",
+          "Na vrhu trup je uspravan, zadnjica stisnuta, teg do visine grudi.",
+          "Ako se leđa zaokruže na spuštanju, težina je prevelika."
+        ],
+        "Hips, swing",
+        "A bell lifted by the shoulders instead of the hips hits the low back",
+        [
+          "Hinge at the hip, knees soft, the weight passes between the thighs.",
+          "The hip is explosive. The arms are a rope, not a crane.",
+          "At the top the torso is tall, glutes squeezed, the weight at chest height.",
+          "If the back rounds on the way down, the weight is too heavy."
+        ]
+      ),
+      olympic: gp(
+        "Clean, snatch, kompleks",
+        "Čupanje iz donjih leđa zameni noge",
+        [
+          "Prvo noge i kuk, pa ruka. Teg ostaje blizu tela na putu gore.",
+          "Iznad glave šaka je iznad ramena pre nego što se lakat ispravi.",
+          "Bučica je dovoljna. Ne menjaj je šipkom dok putanja nije tiha.",
+          "Svaki deo ima svoj kraj. Ako rame ili leđa otkažu u jednom delu, kompleks staje."
+        ],
+        "Clean, snatch, complex",
+        "Yanking with the low back replaces the legs",
+        [
+          "Legs and hips first, then the arm. The weight stays close to the body on the way up.",
+          "Overhead, the hand is over the shoulder before the elbow straightens.",
+          "A dumbbell is enough. Do not switch it for a bar until the path is quiet.",
+          "Each piece has its own stop. If the shoulder or the back quits in one piece, the complex stops."
+        ]
+      ),
+      complex: gp(
+        "Man maker",
+        "Četiri pokreta u jednom ponavljanju, svaki može da pokvari leđa ili rame",
+        [
+          "Redosled ostaje čist: veslanje bučicom, sklek, prenos do ramena, potisak.",
+          "U veslanju leđa ne zaokružuju. U skleku laktovi idu ka rebrima.",
+          "Prenos do ramena ide kukom, ne trzajem iz krsta.",
+          "Ako desno rame ili lakat otkaže u jednom delu, prekini ceo ponov, ne samo poslednji potisak."
+        ],
+        "Man maker",
+        "Four movements in one rep, and any one of them can spoil the back or the shoulder",
+        [
+          "The order stays clean: dumbbell row, push-up, clean to the shoulder, press.",
+          "The back does not round in the row. The elbows go toward the ribs in the push-up.",
+          "The clean to the shoulder comes from the hip, not a jerk from the low back.",
+          "If the right shoulder or elbow quits in one piece, stop the whole rep, not only the last press."
+        ]
+      ),
+      plyo: gp(
+        "Skok i bacanje",
+        "Tvrdi doskok na 116 kg skuplja se u kolenu i Ahilu",
+        [
+          "Doskok ide preko sredine stopala, tiho, kolena u liniji prstiju.",
+          "Burpee zadržava pravilan sklek. Ako rame ne trpi sklek, izbaci sklek iz ponavljanja.",
+          "Ball slam seče ka podu kukom unazad. Leđa nisu bič.",
+          "Battle ropes i high knees rade iz mekih kolena, ne iz krsta."
+        ],
+        "Jump and slam",
+        "A hard landing at 116 kg collects in the knee and the Achilles",
+        [
+          "Land through the middle of the foot, quietly, knees in line with the toes.",
+          "A burpee keeps a proper push-up. If the shoulder will not tolerate the push-up, take the push-up out of the rep.",
+          "A ball slam cuts toward the floor with the hip back. The back is not a whip.",
+          "Battle ropes and high knees work from soft knees, not from the low back."
+        ]
+      ),
+      carry: gp(
+        "Nošenje",
+        "Težina u dugim rukama vuče ramena u sleganje",
+        [
+          "Tegovi uz telo, ramena spuštena i blago unazad, korak kratak.",
+          "Ne naginji se u stranu da nadomestiš slabiji hvat.",
+          "Stani pre nego što hvat otvori desni lakat u bol.",
+          "Lopatice ostaju u džepovima, ne uz uši."
+        ],
+        "Carry",
+        "Weight in long arms drags the shoulders into a shrug",
+        [
+          "Weights at the sides, shoulders down and slightly back, steps short.",
+          "Do not lean to one side to cover a weaker grip.",
+          "Stop before the grip opens the right elbow into pain.",
+          "The shoulder blades stay in the pockets, not up by the ears."
+        ]
+      ),
+      mobility: gp(
+        "Istezanje i zagrevanje",
+        "Dubina nije cilj na zglobu koji je tog dana već prijavio bol",
+        [
+          "Idi do blagog zatezanja, ne do bola u zglobu. Disanje ostaje mirno.",
+          "Warm up od par minuta je priprema, ne serija do otkaza.",
+          "Desno rame i desni lakat se ne guraju dublje ako su već prijavili bol.",
+          "Duže držanje radi se u položaju koji donja leđa mogu da održe."
+        ],
+        "Stretch and warm-up",
+        "Depth is not the goal in a joint that has already reported pain that day",
+        [
+          "Go to a mild stretch, not to pain in the joint. Breathing stays quiet.",
+          "A warm-up of a few minutes is preparation, not a set to failure.",
+          "The right shoulder and right elbow are not pushed deeper if they have already reported pain.",
+          "A longer hold is done in a position the low back can keep."
+        ]
+      ),
+      deadhang: gp(
+        "Vis",
+        "116 kg je dovoljno opterećenje za šake i lakat",
+        [
+          "Hvat u širini ramena ili na paralelnim ručkama.",
+          "Pasivan vis sme da podigne lopatice, ali bol u laktu prekida vis.",
+          "Ne njiši se. Ovo je vis, ne zgib.",
+          "Kaiš samo ako koža šake otkaže. Lakat ima prednost nad dužinom visa."
+        ],
+        "Dead hang",
+        "116 kg is already enough load for the hands and the elbow",
+        [
+          "Grip at shoulder width, or on parallel handles.",
+          "A passive hang may let the shoulder blades rise, but elbow pain ends the hang.",
+          "Do not swing. This is a hang, not a pull-up.",
+          "Straps only if the skin of the hands gives out. The elbow outranks the length of the hang."
+        ]
+      ),
+      other: gp(
+        "Poseban pokret",
+        "Nema užeg šablona, pa važe veto ramena i lakta",
+        [
+          "Drži pokret u opsegu koji ne boli zglob.",
+          "Ako je sprava šipka, bučica ili mašina, primeni pravilo te sprave: neutralan hvat, bez trzaja, bez okruglih leđa.",
+          "Desno rame i desni lakat imaju pravo da prekinu seriju.",
+          "U napomenu zapiši šta je tačno rađeno, da sledeći put pravilo bude preciznije."
+        ],
+        "Specific movement",
+        "There is no tighter template, so the shoulder and elbow still have a veto",
+        [
+          "Keep the motion inside a range that does not hurt the joint.",
+          "If the tool is a bar, a dumbbell, or a machine, use that tool's rule: neutral grip, no jerk, no rounded back.",
+          "The right shoulder and the right elbow are allowed to end the set.",
+          "Write in the note what was actually done, so the rule can be more precise next time."
+        ]
+      )
+    };
+
+    function exerciseLogStats(name) {
+      const stats = { sessions: 0, maxW: 0, maxRepsAtW: 0, maxReps: 0, maxKm: 0, maxSec: 0 };
+      allWorkouts.forEach(workout => {
+        (workout.exercises || []).forEach(exercise => {
+          if (exercise.name !== name) return;
+          stats.sessions += 1;
+          (exercise.sets || []).forEach(set => {
+            const weight = Number(set.weight) || 0;
+            const reps = Number(set.reps) || 0;
+            if (weight > 0 && reps > 0 && (weight > stats.maxW || (weight === stats.maxW && reps > stats.maxRepsAtW))) {
+              stats.maxW = weight;
+              stats.maxRepsAtW = reps;
+            }
+            if (reps > stats.maxReps) stats.maxReps = reps;
+            if ((Number(set.km) || 0) > stats.maxKm) stats.maxKm = Number(set.km);
+            if (!set.km && (Number(set.seconds) || 0) > stats.maxSec) stats.maxSec = Number(set.seconds);
+          });
+        });
+      });
+      return stats;
+    }
+
+    function formatGuideStats(name) {
+      const stats = exerciseLogStats(name);
+      const isSr = currentLanguage === "sr";
+      if (!stats.sessions) return isSr ? "Još nema serija u dnevniku." : "No sets in the log yet.";
+      const parts = [isSr ? `${stats.sessions} sesija u dnevniku.` : `${stats.sessions} sessions in the log.`];
+      if (stats.maxW > 0) parts.push(isSr ? `Najteže: ${stats.maxW} kg × ${stats.maxRepsAtW}.` : `Heaviest: ${stats.maxW} kg × ${stats.maxRepsAtW}.`);
+      else if (stats.maxReps > 0) parts.push(isSr ? `Najviše ponavljanja: ${stats.maxReps}.` : `Most reps: ${stats.maxReps}.`);
+      if (stats.maxKm > 0) parts.push(isSr ? `Najduži komad: ${stats.maxKm} km.` : `Longest piece: ${stats.maxKm} km.`);
+      if (stats.maxSec > 0) {
+        const minutes = Math.floor(stats.maxSec / 60);
+        const seconds = Math.round(stats.maxSec % 60);
+        const clock = minutes && seconds ? `${minutes} min ${seconds} s` : minutes ? `${minutes} min` : `${seconds} s`;
+        parts.push(isSr ? `Najduže trajanje: ${clock}.` : `Longest duration: ${clock}.`);
+      }
+      return parts.join(" ");
+    }
+
+    function curatedGuide(name) {
+      const key = GUIDE_ALIAS[name] || name;
+      return TECHNIQUE_GUIDES.find(guide => guide.exercise === key) || null;
+    }
+
+    function guideEntry(name) {
+      const curated = curatedGuide(name);
+      const generated = (GUIDE_PATTERNS[guidePatternId(name)] || GUIDE_PATTERNS.other);
+      const copy = curated ? guideText(curated) : (currentLanguage === "en" ? generated.en : generated.sr);
+      return {
+        exercise: name,
+        target: copy.target,
+        risk: copy.risk,
+        keyCues: copy.keyCues,
+        milansStats: curated && copy.milansStats ? copy.milansStats : formatGuideStats(name),
+        group: muscleGroup(name)
+      };
+    }
+
+    function loggedExerciseNames() {
+      const counts = {};
+      allWorkouts.forEach(workout => {
+        (workout.exercises || []).forEach(exercise => {
+          if (!exercise.name) return;
+          counts[exercise.name] = (counts[exercise.name] || 0) + 1;
+        });
+      });
+      return Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+    }
+
+    function setGuideGroup(group) {
+      guideGroup = group;
+      renderTechniqueGuides();
+    }
+
     function guideText(g) {
       if (currentLanguage === 'en' && GUIDE_EN[g.exercise]) return GUIDE_EN[g.exercise];
       return { target: g.target, risk: g.risk, keyCues: g.keyCues, milansStats: g.milansStats };
@@ -2503,36 +3399,69 @@
     function renderTechniqueGuides() {
       const container = document.getElementById('guides-grid');
       if (!container) return;
-
       const isSr = currentLanguage === 'sr';
+      const search = document.getElementById('guide-search');
+      if (search) search.placeholder = isSr ? 'Pretraži vežbu...' : 'Search an exercise...';
+      const query = search ? search.value.trim().toLowerCase() : '';
+      const groups = [
+        ['all', isSr ? 'Sve' : 'All'],
+        ['Chest', isSr ? 'Prsa' : 'Chest'],
+        ['Back', isSr ? 'Leđa' : 'Back'],
+        ['Shoulders', isSr ? 'Ramena' : 'Shoulders'],
+        ['Arms', isSr ? 'Ruke' : 'Arms'],
+        ['Legs', isSr ? 'Noge' : 'Legs'],
+        ['Core', isSr ? 'Trup' : 'Core'],
+        ['Cardio', isSr ? 'Kardio' : 'Cardio'],
+        ['Mobility', isSr ? 'Mobilnost' : 'Mobility'],
+        ['Other', isSr ? 'Ostalo' : 'Other']
+      ];
+      const filters = document.getElementById('guide-filters');
+      if (filters) {
+        filters.innerHTML = groups.map(([id, label]) => `
+          <button type="button" class="btn ${guideGroup === id ? 'btn-primary' : 'btn-chip'}" style="min-height: 32px; padding: 4px 10px;" onclick="setGuideGroup('${id}')">${label}</button>
+        `).join('');
+      }
 
-      container.innerHTML = TECHNIQUE_GUIDES.map(g => {
-        const copy = guideText(g);
+      guideCards = loggedExerciseNames().filter(name => {
+        const entry = guideEntry(name);
+        if (guideGroup !== 'all' && entry.group !== guideGroup) return false;
+        if (!query) return true;
+        return name.toLowerCase().includes(query) || entry.target.toLowerCase().includes(query);
+      });
+      const count = document.getElementById('guide-count');
+      if (count) {
+        const total = loggedExerciseNames().length;
+        count.textContent = isSr ? `${guideCards.length} od ${total} vežbi` : `${guideCards.length} of ${total} exercises`;
+      }
+      if (!guideCards.length) {
+        container.innerHTML = `<div class="panel"><p style="color: var(--on-surface-variant); margin: 0;">${isSr ? 'Nema vežbe za ovu pretragu.' : 'No exercise matches this search.'}</p></div>`;
+        return;
+      }
+
+      container.innerHTML = guideCards.map((name, index) => {
+        const copy = guideEntry(name);
         return `
         <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-md);">
           <div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; gap: 8px;">
               <span class="status-chip-cyan status-chip">${escapeHtml(copy.target)}</span>
               <i data-lucide="shield" style="width: 16px; height: 16px; color: var(--tertiary);"></i>
             </div>
-            <h3 style="font-size: 1.2rem; margin-top: 4px;">${escapeHtml(g.exercise)}</h3>
+            <h3 style="font-size: 1.2rem; margin-top: 4px;">${escapeHtml(name)}</h3>
             <p style="color: var(--warning); font-size: 0.8125rem; margin-top: 2px;">
               ⚠️ ${escapeHtml(copy.risk)}
             </p>
-
             <ul style="padding-left: var(--space-md); margin-top: var(--space-sm); font-size: 0.875rem; color: var(--on-surface-variant); display: flex; flex-direction: column; gap: 4px;">
               ${copy.keyCues.slice(0, 2).map(cue => `<li>${escapeHtml(cue)}</li>`).join('')}
             </ul>
           </div>
-
           <div style="border-top: var(--hairline); padding-top: var(--space-sm); display: flex; justify-content: space-between; align-items: center;">
             <span class="data-label" style="font-size: 0.7rem;">${isSr ? '197cm Poluge' : '197cm Levers'}</span>
-            <button class="btn btn-secondary" style="min-height: 36px; padding: 4px 10px; font-size: 0.75rem;" onclick="openTechModal('${g.exercise}')">
+            <button type="button" class="btn btn-secondary" style="min-height: 36px; padding: 4px 10px; font-size: 0.75rem;" onclick="openGuideCard(${index})">
               ${isSr ? 'Detaljna Uputstva' : 'Full Protocol'}
             </button>
           </div>
-        </div>
-      `;
+        </div>`;
       }).join('');
 
       if (window.lucide && typeof window.lucide.createIcons === 'function') {
@@ -2540,8 +3469,15 @@
       }
     }
 
+    let guideCards = [];
+
+    function openGuideCard(index) {
+      const name = guideCards[index];
+      if (name) openTechModal(name);
+    }
+
     function openTechModal(exerciseName) {
-      const guide = TECHNIQUE_GUIDES.find(g => g.exercise === exerciseName);
+      const guide = guideEntry(exerciseName);
       if (!guide) return;
 
       const modal = document.getElementById('technique-modal');
@@ -2550,28 +3486,27 @@
       const content = document.getElementById('modal-tech-content');
 
       const isSr = currentLanguage === 'sr';
-      const copy = guideText(guide);
 
       if (title) title.textContent = guide.exercise;
-      if (badge) badge.textContent = copy.target;
+      if (badge) badge.textContent = guide.target;
 
       if (content) {
         content.innerHTML = `
           <div class="well" style="border-left: 3px solid var(--warning);">
             <strong style="color: var(--warning);">${isSr ? 'Bezbednost & Rizik:' : 'Safety & Joint Risk:'}</strong>
-            <p style="margin: 4px 0 0 0; color: var(--on-surface); font-size: 0.875rem;">${escapeHtml(copy.risk)}</p>
+            <p style="margin: 4px 0 0 0; color: var(--on-surface); font-size: 0.875rem;">${escapeHtml(guide.risk)}</p>
           </div>
 
           <div>
             <h4 style="margin-bottom: var(--space-xs); color: var(--primary);">${isSr ? 'Ključna pravila forme za 197cm visinu:' : 'Key Biomechanical Rules for 197cm:'}</h4>
             <ul style="padding-left: var(--space-md); margin: 0; display: flex; flex-direction: column; gap: 6px;">
-              ${copy.keyCues.map(c => `<li>${escapeHtml(c)}</li>`).join('')}
+              ${guide.keyCues.map(c => `<li>${escapeHtml(c)}</li>`).join('')}
             </ul>
           </div>
 
           <div class="well" style="border-left: 3px solid var(--tertiary);">
             <strong style="color: var(--tertiary);">${isSr ? 'Podaci iz Milanovog Dnevnika:' : 'Data from Milan’s Personal Logs:'}</strong>
-            <p style="margin: 4px 0 0 0; color: var(--on-surface); font-size: 0.875rem;">${escapeHtml(copy.milansStats)}</p>
+            <p style="margin: 4px 0 0 0; color: var(--on-surface); font-size: 0.875rem;">${escapeHtml(guide.milansStats)}</p>
           </div>
         `;
       }
@@ -2585,7 +3520,12 @@
     }
 
     function openBioModal() {
-      openTechModal("Bench Press (Barbell)");
+      guideGroup = 'all';
+      switchTab('guides');
+      const search = document.getElementById('guide-search');
+      if (search) search.value = '';
+      renderTechniqueGuides();
+      if (search) search.focus();
     }
 
     /* --------------------------------------------------------------------------
