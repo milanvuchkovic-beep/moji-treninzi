@@ -543,6 +543,44 @@
         </div>
       </section>
 
+      <section class="panel" id="body-panel" style="display: flex; flex-direction: column; gap: var(--space-md);">
+        <div>
+          <h2 id="body-title">Telesna mera</h2>
+          <p id="body-desc" style="color: var(--on-surface-variant); font-size: 0.875rem; margin: 4px 0 0;">
+            Težina, struk, ruka i noga. Neasistirani zgib na dan treninga koristi poslednju meru težine do tog datuma.
+          </p>
+        </div>
+        <form id="body-form" onsubmit="saveBodyMeasurement(event)" style="display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: flex-end;">
+          <label class="data-label" style="display: flex; flex-direction: column; gap: 4px;">
+            <span id="lbl-body-date">Datum</span>
+            <input id="body-date" type="date" required style="width: auto;">
+          </label>
+          <label class="data-label" style="display: flex; flex-direction: column; gap: 4px;">
+            <span id="lbl-body-weight">Težina (kg)</span>
+            <input id="body-weight" type="number" min="30" max="250" step="0.1" inputmode="decimal" style="width: 110px;">
+          </label>
+          <label class="data-label" style="display: flex; flex-direction: column; gap: 4px;">
+            <span id="lbl-body-waist">Struk (cm)</span>
+            <input id="body-waist" type="number" min="40" max="200" step="0.1" inputmode="decimal" style="width: 110px;">
+          </label>
+          <label class="data-label" style="display: flex; flex-direction: column; gap: 4px;">
+            <span id="lbl-body-arm">Ruka (cm)</span>
+            <input id="body-arm" type="number" min="15" max="80" step="0.1" inputmode="decimal" style="width: 110px;">
+          </label>
+          <label class="data-label" style="display: flex; flex-direction: column; gap: 4px;">
+            <span id="lbl-body-leg">Noga (cm)</span>
+            <input id="body-leg" type="number" min="30" max="120" step="0.1" inputmode="decimal" style="width: 110px;">
+          </label>
+          <button class="btn btn-primary" type="submit" id="btn-body-save">Sačuvaj meru</button>
+        </form>
+        <p id="body-status" style="display: none; margin: 0; font-size: 0.875rem;"></p>
+        <div id="body-latest" style="display: flex; flex-wrap: wrap; gap: var(--space-sm);"></div>
+        <div class="chart-box" id="body-chart-box" style="min-height: 220px; display: none;">
+          <canvas id="bodyChart"></canvas>
+        </div>
+        <div id="body-table"></div>
+      </section>
+
       <!-- Dynamic Date Range Filter & Chart Panel -->
       <section class="panel" style="display: flex; flex-direction: column; gap: var(--space-md);">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-md);">
@@ -846,9 +884,11 @@
       <details id="sheet-append-setup" style="margin-bottom: var(--space-md);">
         <summary id="lbl-sheet-append" style="cursor: pointer; font-size: 0.875rem;">Jednokratno: adresa za upis u Google Sheet</summary>
         <p id="sheet-append-help" style="color: var(--on-surface-variant); font-size: 0.8125rem; margin: var(--space-sm) 0;">
-          U svojoj tabeli: Extensions → Apps Script, nalepi google-apps-script/Code.gs, Deploy → Web app, Execute as: Me, Who has access: Anyone. Nalepi /exec adresu ovde.
+          U svojoj tabeli: Extensions → Apps Script, nalepi google-apps-script/Code.gs, Deploy → Web app, Execute as: Me, Who has access: Anyone. Nalepi /exec adresu ovde. Posle izmene koda uradi New version. Tab Mera objavi kao CSV i nalepi adresu ispod.
         </p>
         <input id="sheet-append-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec" style="width: 100%;">
+        <label for="body-csv-url" class="data-label" id="lbl-body-csv" style="margin-top: var(--space-sm);">CSV taba Mera</label>
+        <input id="body-csv-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv&gid=..." style="width: 100%;">
       </details>
 
       <div id="hevy-parse-status" style="margin-bottom: var(--space-md); font-size: 0.875rem; display: none;"></div>
@@ -893,6 +933,9 @@
     const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vROONeDV5uHW4UemVFoRrBrt5-3ISRJQDS-9JeNq85a70HW0QrTOuq2ow2C5MThq0XGoMfeC1tP6rIv/pub?output=csv";
     const LOCAL_WORKOUTS_KEY = 'milan-tracker-workouts-v1';
     const SHEET_APPEND_KEY = 'milan-tracker-sheet-append-url';
+    const BODY_KEY = 'milan-tracker-body-v1';
+    const BODY_CSV_KEY = 'milan-tracker-body-csv-url';
+    let bodyLog = [];
 
     /* --------------------------------------------------------------------------
        STATE AND APPLICATION DATA
@@ -906,6 +949,7 @@
     // Charts instances
     let progressionChartInst = null;
     let tonnageChartInst = null;
+    let bodyChartInst = null;
     let workoutTypeChartInst = null;
     let rowingPaceChartInst = null;
     let rowingPowerChartInst = null;
@@ -1173,7 +1217,7 @@
         customRange: "Prilagođeni opseg:",
         btnResetDate: "Resetuj",
         hTonnage: "Ukupna Tonaža po Treningu (kg)",
-        subTonnage: "Ukupno podignuta težina (težina × ponavljanja) kroz vreme.",
+        subTonnage: "Težina × ponavljanja. Neasistirani zgib koristi poslednju telesnu meru do datuma treninga.",
         hFreq: "Učestalost i Tipovi Treninga",
         subFreq: "Prikaz sesija po mesecima (Full body, HIIT, Upper, grupe mišića i ostalo).",
         c2Title: "Concept2 Veslač • Anaerobni Sprintovi & VO2 Max",
@@ -1229,7 +1273,7 @@
         techClose: "U redu, razumem",
         pastePlaceholder: "Full body A\nTuesday, Nov 03, 2026 at 5:14pm\n\nBench Press (Barbell)\nSet 1: 60 kg x 6 [Warmup]",
         appendSummary: "Jednokratno: adresa za upis u Google Sheet",
-        appendHelp: "U svojoj tabeli: Extensions → Apps Script, nalepi google-apps-script/Code.gs, Deploy → Web app, Execute as: Me, Who has access: Anyone. Nalepi /exec adresu ovde. Posle toga svaki nalepak upisuje redove, a sajt ih povlači sam. Adresa ostaje samo u ovom pregledaču."
+        appendHelp: "U svojoj tabeli: Extensions → Apps Script, nalepi google-apps-script/Code.gs, Deploy → Web app, Execute as: Me, Who has access: Anyone. Nalepi /exec adresu ovde. Ako skripta već radi, zameni kod i Deploy → Manage deployments → olovka → New version. Tab Mera nastaje sam; objavi ga kao CSV i nalepi tu adresu ispod. Adrese ostaju samo u ovom pregledaču."
       },
       en: {
         profileTag: "ATHLETE 197cm / 116kg",
@@ -1257,7 +1301,7 @@
         customRange: "Custom Range:",
         btnResetDate: "Reset",
         hTonnage: "Total Tonnage per Workout (kg)",
-        subTonnage: "Total weight moved (weight × reps) across training sessions.",
+        subTonnage: "Weight × reps. An unassisted pull-up uses the last body weight logged on or before that session.",
         hFreq: "Workout Frequency & Split Types",
         subFreq: "Monthly session count (full body, HIIT, upper, muscle-group days, and the rest).",
         c2Title: "Concept2 Rower • Anaerobic Sprints & VO2 Max",
@@ -1313,7 +1357,7 @@
         techClose: "Got it",
         pastePlaceholder: "Full body A\nTuesday, Nov 03, 2026 at 5:14pm\n\nBench Press (Barbell)\nSet 1: 60 kg x 6 [Warmup]",
         appendSummary: "One time: address that writes to Google Sheets",
-        appendHelp: "In your own sheet: Extensions → Apps Script, paste google-apps-script/Code.gs, Deploy → Web app, Execute as: Me, Who has access: Anyone. Paste the /exec URL here. After that every paste writes rows and the site pulls them. The address stays in this browser only."
+        appendHelp: "In your own sheet: Extensions → Apps Script, paste google-apps-script/Code.gs, Deploy → Web app, Execute as: Me, Who has access: Anyone. Paste the /exec URL here. If the script is already deployed, replace the code and Deploy → Manage deployments → pencil → New version. The Mera tab is created on the first save; publish it as CSV and paste that address below. Addresses stay in this browser only."
       }
     };
 
@@ -1341,7 +1385,9 @@
         }
       }
       loadLocalWorkouts();
+      loadBodyLog();
       bindAppendUrlField();
+      bindBodyCsvField();
 
       // 3. Render initial views
       applyLanguage(currentLanguage);
@@ -1360,6 +1406,7 @@
         window.notebookAppApi.notifyAppReady();
       }
       syncGoogleSheets({ silent: true });
+      syncBodySheet({ silent: true });
     });
 
     /* --------------------------------------------------------------------------
@@ -1488,6 +1535,7 @@
       renderRowingAnalytics();
       renderMuscleAnalytics();
       renderTechniqueGuides();
+      renderBodyPanel();
       handleWorkoutSearch(searchInp ? searchInp.value : '');
     }
 
@@ -1692,6 +1740,46 @@
       if (pullEl) {
         pullEl.innerHTML = `${pullReps || 0} <span style="font-size: 1rem; color: var(--on-surface-variant);">${t.repsUnit}</span>`;
       }
+      const weighed = bodyMeasurements().filter(m => Number(m.weight) > 0);
+      const latestWeight = weighed.length ? weighed[weighed.length - 1] : null;
+      if (latestWeight) {
+        setElemText('lbl-bw-sub', currentLanguage === 'sr'
+          ? `Zgib koristi poslednju težinu do datuma treninga. Poslednja: ${latestWeight.weight} kg (${latestWeight.date}).`
+          : `Pull-ups use the last weight on or before the session. Latest: ${latestWeight.weight} kg (${latestWeight.date}).`);
+      }
+    }
+
+    function isUnassistedPull(name) {
+      const n = String(name || '');
+      if (/assisted/i.test(n)) return false;
+      return /^pull up$/i.test(n)
+        || /^pull up \(neutral/i.test(n)
+        || /^chin up$/i.test(n)
+        || /^ring pull up$/i.test(n);
+    }
+
+    function bodyMeasurements() {
+      return bodyLog
+        .filter(m => m && m.date)
+        .slice()
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    }
+
+    function bodyweightOn(date) {
+      const rows = bodyMeasurements().filter(m => Number(m.weight) > 0);
+      if (!rows.length || !date) return 0;
+      let chosen = 0;
+      rows.forEach(row => {
+        if (row.date <= date) chosen = Number(row.weight);
+      });
+      return chosen;
+    }
+
+    function setLoad(exercise, set, date) {
+      const own = set && set.weight !== undefined && set.weight !== null && set.weight !== '' ? Number(set.weight) : 0;
+      if (own > 0) return own;
+      if (exercise && isUnassistedPull(exercise.name)) return bodyweightOn(date);
+      return own;
     }
 
     function populateExerciseSelect(preferred) {
@@ -1726,7 +1814,7 @@
           let vol = 0;
 
           found.sets.forEach(s => {
-            const wt = s.weight || 0;
+            const wt = setLoad(found, s, w.date);
             const reps = s.reps || 0;
             if (wt > maxW) maxW = wt;
             if (wt > 0 && reps > 0) {
@@ -1856,9 +1944,8 @@
         let sessionTon = 0;
         w.exercises.forEach(ex => {
           ex.sets.forEach(s => {
-            if (s.weight && s.reps) {
-              sessionTon += s.weight * s.reps;
-            }
+            const load = setLoad(ex, s, w.date);
+            if (load && s.reps) sessionTon += load * s.reps;
           });
         });
         tonnages.push(Math.round(sessionTon));
@@ -2289,9 +2376,8 @@
           }
           muscleSets[group] += (ex.sets || []).length;
           ex.sets.forEach(s => {
-            if (s.weight && s.reps) {
-              muscleTonnage[group] += (s.weight * s.reps);
-            }
+            const load = setLoad(ex, s, w.date);
+            if (load && s.reps) muscleTonnage[group] += load * s.reps;
           });
         });
       });
@@ -2411,7 +2497,8 @@
           let sCount = ex.sets.length;
           exerciseSummary.push(`${ex.name} (${sCount})`);
           ex.sets.forEach(s => {
-            if (s.weight && s.reps) totalTon += (s.weight * s.reps);
+            const load = setLoad(ex, s, w.date);
+            if (load && s.reps) totalTon += load * s.reps;
           });
         });
 
@@ -2456,7 +2543,7 @@
                       ${ex.notes ? `<span class="status-chip-warn status-chip" style="font-size: 0.65rem;">${escapeHtml(ex.notes)}</span>` : ''}
                     </div>
                     <div style="color: var(--on-surface-variant); font-family: var(--font-label); margin-top: 2px;">
-                      ${ex.sets.map((s, idx) => formatSetLabel(s, idx)).join(' ')}
+                      ${ex.sets.map((s, idx) => formatSetLabel(s, idx, isUnassistedPull(ex.name) ? setLoad(ex, s, w.date) : 0)).join(' ')}
                     </div>
                   </div>
                 `).join('')}
@@ -2471,9 +2558,11 @@
       }
     }
 
-    function formatSetLabel(s, idx) {
+    function formatSetLabel(s, idx, carried) {
       const parts = [];
-      if (s.weight !== undefined && s.weight !== null && s.weight !== '') parts.push(`${s.weight}kg`);
+      const own = s.weight !== undefined && s.weight !== null && s.weight !== '';
+      if (own) parts.push(`${s.weight}kg`);
+      else if (carried) parts.push(`${carried}kg`);
       if (s.reps) parts.push(`× ${s.reps}`);
       if (s.km) parts.push(`${s.km}km`);
       if (s.seconds) parts.push(`${s.seconds}s`);
@@ -4232,7 +4321,7 @@
       input.addEventListener('change', () => rememberAppendUrl(true));
     }
 
-    function postRowsToSheet(url, rows) {
+    function postRowsToSheet(url, rows, kind) {
       return new Promise(resolve => {
         const frameId = 'sheet-append-frame';
         let frame = document.getElementById(frameId);
@@ -4253,7 +4342,7 @@
         const payload = document.createElement('input');
         payload.type = 'hidden';
         payload.name = 'payload';
-        payload.value = JSON.stringify({ rows });
+        payload.value = JSON.stringify(kind ? { kind, rows } : { rows });
         form.appendChild(payload);
         document.body.appendChild(form);
         form.submit();
@@ -4261,6 +4350,341 @@
           form.remove();
           resolve({ sent: true });
         }, 1500);
+      });
+    }
+
+    function isBodyCsvUrl(url) {
+      try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'https:' || parsed.hostname !== 'docs.google.com') return false;
+        if (!/^\/spreadsheets\/d\/(?:e\/)?[^/]+\/(?:pub|export)$/.test(parsed.pathname)) return false;
+        const output = parsed.searchParams.get('output') || parsed.searchParams.get('format');
+        return output === 'csv';
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function readStoredBodyCsvUrl() {
+      try { return (localStorage.getItem(BODY_CSV_KEY) || '').trim(); }
+      catch (e) { return ''; }
+    }
+
+    function getBodyCsvUrl() {
+      const input = document.getElementById('body-csv-url');
+      const typed = input ? input.value.trim() : '';
+      const url = typed || readStoredBodyCsvUrl();
+      return isBodyCsvUrl(url) ? url : '';
+    }
+
+    function rememberBodyCsvUrl() {
+      const input = document.getElementById('body-csv-url');
+      if (!input) return '';
+      try { localStorage.setItem(BODY_CSV_KEY, input.value.trim()); }
+      catch (e) { console.warn('Could not store the body CSV address', e); }
+      return getBodyCsvUrl();
+    }
+
+    function bindBodyCsvField() {
+      const input = document.getElementById('body-csv-url');
+      if (!input || input.dataset.bound === '1') return;
+      input.dataset.bound = '1';
+      if (!input.value) input.value = readStoredBodyCsvUrl();
+      input.addEventListener('change', () => {
+        if (rememberBodyCsvUrl()) syncBodySheet({ silent: true });
+      });
+    }
+
+    function loadBodyLog() {
+      try {
+        const raw = localStorage.getItem(BODY_KEY);
+        const data = raw ? JSON.parse(raw) : [];
+        bodyLog = Array.isArray(data) ? data.filter(m => m && m.date) : [];
+      } catch (e) {
+        bodyLog = [];
+      }
+    }
+
+    function saveBodyLog() {
+      try { localStorage.setItem(BODY_KEY, JSON.stringify(bodyLog)); }
+      catch (e) { console.warn('Could not store body measurements', e); }
+    }
+
+    function mergeBodyRows(incoming) {
+      const byDate = new Map();
+      bodyLog.forEach(row => {
+        if (row && row.date) byDate.set(row.date, row);
+      });
+      (incoming || []).forEach(row => {
+        const local = byDate.get(row.date);
+        if (local && local.freshUntil && local.freshUntil > Date.now()) return;
+        byDate.set(row.date, row);
+      });
+      bodyLog = [...byDate.values()].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      saveBodyLog();
+    }
+
+    function metricField(id) {
+      const el = document.getElementById(id);
+      if (!el || String(el.value).trim() === '') return '';
+      const number = Number(String(el.value).replace(',', '.'));
+      return Number.isFinite(number) ? number : '';
+    }
+
+    function saveBodyMeasurement(event) {
+      if (event) event.preventDefault();
+      const isSr = currentLanguage === 'sr';
+      const status = document.getElementById('body-status');
+      const dateEl = document.getElementById('body-date');
+      const date = dateEl ? String(dateEl.value || '').slice(0, 10) : '';
+      const entry = {
+        date,
+        weight: metricField('body-weight'),
+        waist: metricField('body-waist'),
+        arm: metricField('body-arm'),
+        leg: metricField('body-leg'),
+        freshUntil: Date.now() + 15 * 60 * 1000
+      };
+      const show = (text, color) => {
+        if (!status) return;
+        status.style.display = 'block';
+        status.style.color = color;
+        status.textContent = text;
+      };
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        show(isSr ? 'Izaberi datum.' : 'Choose a date.', 'var(--error)');
+        return;
+      }
+      if (entry.weight === '' && entry.waist === '' && entry.arm === '' && entry.leg === '') {
+        show(isSr ? 'Upiši bar jednu meru.' : 'Enter at least one measurement.', 'var(--error)');
+        return;
+      }
+      const previous = bodyLog.find(row => row.date === date);
+      if (previous) {
+        ['weight', 'waist', 'arm', 'leg'].forEach(key => {
+          if (entry[key] === '' && previous[key] !== '' && previous[key] != null) entry[key] = previous[key];
+        });
+      }
+      bodyLog = bodyLog.filter(row => row.date !== date);
+      bodyLog.push(entry);
+      bodyLog.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      saveBodyLog();
+      ['body-weight', 'body-waist', 'body-arm', 'body-leg'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      renderBodyPanel();
+      updateKpis();
+      renderProgressionChart();
+      renderTonnageChart();
+      renderMuscleAnalytics();
+      const search = document.getElementById('workout-search-input');
+      handleWorkoutSearch(search ? search.value : '');
+      const url = getAppendUrl();
+      if (!url) {
+        show(isSr
+          ? 'Mera je na sajtu. Da uđe u tab Mera, jednom nalepi Apps Script adresu u uvozu.'
+          : 'Saved on the site. Paste the Apps Script address in the import dialog once so it also lands in the Mera tab.',
+          'var(--tertiary)');
+        return;
+      }
+      show(isSr ? 'Mera je na sajtu. Upisujem tab Mera...' : 'Saved on the site. Writing the Mera tab...', 'var(--tertiary)');
+      postRowsToSheet(url, [entry], 'body').then(() => {
+        show(isSr
+          ? 'Mera je na sajtu i poslata u tab Mera. Da je drugi uređaj vidi, objavi taj tab kao CSV i nalepi adresu u uvozu.'
+          : 'Saved on the site and sent to the Mera tab. Publish that tab as CSV and paste the link in the import dialog so another device can read it.',
+          'var(--tertiary)');
+      });
+    }
+
+    function parseBodyCsv(text) {
+      const records = splitCsvRecords(String(text || '').replace(/^\uFEFF/, '').trim());
+      if (!records.length) return [];
+      const header = parseCsvLine(records[0]).map(cell => String(cell || '').trim().toLowerCase());
+      const find = (...names) => header.findIndex(name => names.includes(name));
+      let dateCol = find('date');
+      let weightCol = find('weight_kg', 'weight');
+      let waistCol = find('waist_cm', 'waist');
+      let armCol = find('arm_cm', 'arm');
+      let legCol = find('leg_cm', 'leg');
+      let start = 1;
+      if (dateCol < 0) {
+        dateCol = 0;
+        weightCol = 1;
+        waistCol = 2;
+        armCol = 3;
+        legCol = 4;
+        start = 0;
+      }
+      const out = [];
+      for (let i = start; i < records.length; i++) {
+        const cells = parseCsvLine(records[i]);
+        const date = normalizeDate(cells[dateCol]);
+        if (!date) continue;
+        const num = idx => {
+          if (idx < 0 || cells[idx] == null || String(cells[idx]).trim() === '') return '';
+          const number = Number(String(cells[idx]).trim().replace(',', '.'));
+          return Number.isFinite(number) ? number : '';
+        };
+        const point = { date, weight: num(weightCol), waist: num(waistCol), arm: num(armCol), leg: num(legCol) };
+        if (point.weight === '' && point.waist === '' && point.arm === '' && point.leg === '') continue;
+        out.push(point);
+      }
+      return out;
+    }
+
+    async function syncBodySheet(options) {
+      const url = getBodyCsvUrl();
+      if (!url) return;
+      try {
+        const response = await fetch(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) return;
+        const text = await response.text();
+        if (!text.trim()) return;
+        mergeBodyRows(parseBodyCsv(text));
+        renderBodyPanel();
+        updateKpis();
+        renderProgressionChart();
+        renderTonnageChart();
+        renderMuscleAnalytics();
+        const search = document.getElementById('workout-search-input');
+        handleWorkoutSearch(search ? search.value : '');
+      } catch (e) {
+        if (!(options && options.silent)) console.warn('Body sheet sync failed', e);
+      }
+    }
+
+    function latestBodyMetric(key) {
+      const rows = bodyMeasurements();
+      for (let i = rows.length - 1; i >= 0; i--) {
+        const value = rows[i][key];
+        if (value !== '' && value != null) return { value, date: rows[i].date };
+      }
+      return null;
+    }
+
+    function renderBodyPanel() {
+      const isSr = currentLanguage === 'sr';
+      const dateInput = document.getElementById('body-date');
+      if (dateInput && !dateInput.value) dateInput.value = todayISO();
+      setElemText('body-title', isSr ? 'Telesna mera' : 'Body measurements');
+      setElemText('body-desc', isSr
+        ? 'Težina, struk, ruka i noga. Neasistirani zgib na dan treninga koristi poslednju meru težine do tog datuma.'
+        : 'Weight, waist, arm, and leg. An unassisted pull-up uses the last weight logged on or before that session.');
+      setElemText('lbl-body-date', isSr ? 'Datum' : 'Date');
+      setElemText('lbl-body-weight', isSr ? 'Težina (kg)' : 'Weight (kg)');
+      setElemText('lbl-body-waist', isSr ? 'Struk (cm)' : 'Waist (cm)');
+      setElemText('lbl-body-arm', isSr ? 'Ruka (cm)' : 'Arm (cm)');
+      setElemText('lbl-body-leg', isSr ? 'Noga (cm)' : 'Leg (cm)');
+      setElemText('btn-body-save', isSr ? 'Sačuvaj meru' : 'Save measurement');
+      setElemText('lbl-body-csv', isSr ? 'CSV taba Mera' : 'Mera tab CSV');
+
+      const latestBox = document.getElementById('body-latest');
+      const table = document.getElementById('body-table');
+      const chartBox = document.getElementById('body-chart-box');
+      const rows = bodyMeasurements();
+      if (latestBox) {
+        const chip = (label, metric, unit) => {
+          if (!metric) return '';
+          return `<span class="status-chip">${escapeHtml(label)}: ${escapeHtml(String(metric.value))} ${unit} · ${escapeHtml(metric.date)}</span>`;
+        };
+        const chips = [
+          chip(isSr ? 'Težina' : 'Weight', latestBodyMetric('weight'), 'kg'),
+          chip(isSr ? 'Struk' : 'Waist', latestBodyMetric('waist'), 'cm'),
+          chip(isSr ? 'Ruka' : 'Arm', latestBodyMetric('arm'), 'cm'),
+          chip(isSr ? 'Noga' : 'Leg', latestBodyMetric('leg'), 'cm')
+        ].join('');
+        latestBox.innerHTML = chips || `<span style="color: var(--on-surface-variant); font-size: 0.875rem;">${isSr ? 'Još nema upisane mere.' : 'No measurement yet.'}</span>`;
+      }
+      if (table) {
+        const newest = rows.slice().reverse().slice(0, 24);
+        const cell = value => (value === '' || value == null) ? '—' : escapeHtml(String(value));
+        table.innerHTML = newest.length ? `
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.8125rem;">
+            <thead>
+              <tr class="data-label">
+                <th style="text-align:left; padding: 4px;">${isSr ? 'Datum' : 'Date'}</th>
+                <th style="text-align:right; padding: 4px;">kg</th>
+                <th style="text-align:right; padding: 4px;">${isSr ? 'Struk' : 'Waist'}</th>
+                <th style="text-align:right; padding: 4px;">${isSr ? 'Ruka' : 'Arm'}</th>
+                <th style="text-align:right; padding: 4px;">${isSr ? 'Noga' : 'Leg'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${newest.map(row => `
+                <tr>
+                  <td class="tabular-val" style="padding: 4px;">${escapeHtml(row.date)}</td>
+                  <td class="tabular-val" style="text-align:right; padding: 4px;">${cell(row.weight)}</td>
+                  <td class="tabular-val" style="text-align:right; padding: 4px;">${cell(row.waist)}</td>
+                  <td class="tabular-val" style="text-align:right; padding: 4px;">${cell(row.arm)}</td>
+                  <td class="tabular-val" style="text-align:right; padding: 4px;">${cell(row.leg)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : '';
+      }
+      const canvas = document.getElementById('bodyChart');
+      const series = [
+        { key: 'weight', label: isSr ? 'Težina (kg)' : 'Weight (kg)', color: '#63c7d6', axis: 'y' },
+        { key: 'waist', label: isSr ? 'Struk (cm)' : 'Waist (cm)', color: '#e8b954', axis: 'y1' },
+        { key: 'arm', label: isSr ? 'Ruka (cm)' : 'Arm (cm)', color: '#87d69b', axis: 'y1' },
+        { key: 'leg', label: isSr ? 'Noga (cm)' : 'Leg (cm)', color: '#f08c70', axis: 'y1' }
+      ].filter(item => rows.some(row => row[item.key] !== '' && row[item.key] != null));
+      if (!canvas || !chartBox || !series.length || typeof Chart === 'undefined') {
+        if (chartBox) chartBox.style.display = 'none';
+        if (bodyChartInst) {
+          bodyChartInst.destroy();
+          bodyChartInst = null;
+        }
+        return;
+      }
+      chartBox.style.display = 'block';
+      if (bodyChartInst) bodyChartInst.destroy();
+      const hasCm = series.some(item => item.axis === 'y1');
+      bodyChartInst = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: rows.map(row => row.date),
+          datasets: series.map(item => ({
+            label: item.label,
+            data: rows.map(row => (row[item.key] === '' || row[item.key] == null) ? null : Number(row[item.key])),
+            borderColor: item.color,
+            backgroundColor: item.color,
+            borderWidth: 2,
+            pointRadius: 3,
+            spanGaps: true,
+            tension: 0.25,
+            yAxisID: item.axis
+          }))
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: {
+              grid: { color: '#213138' },
+              ticks: { color: '#94a8b0', font: { family: 'Geist Mono', size: 10 } }
+            },
+            y: {
+              position: 'left',
+              title: { display: true, text: 'kg', color: '#94a8b0' },
+              grid: { color: '#213138' },
+              ticks: { color: '#edf3f5', font: { family: 'Geist Mono' } }
+            },
+            y1: {
+              display: hasCm,
+              position: 'right',
+              title: { display: hasCm, text: 'cm', color: '#e8b954' },
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#e8b954', font: { family: 'Geist Mono' } }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#edf3f5', font: { family: 'Plus Jakarta Sans', size: 12 } } }
+          }
+        }
       });
     }
 
