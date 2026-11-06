@@ -547,7 +547,7 @@
         <div>
           <h2 id="body-title">Telesna mera</h2>
           <p id="body-desc" style="color: var(--on-surface-variant); font-size: 0.875rem; margin: 4px 0 0;">
-            Težina, struk, ruka i noga. Neasistirani zgib na dan treninga koristi poslednju meru težine do tog datuma.
+            Težina, struk, ruka i noga. Isti upis vidi i telefon, čim se objavljeni tab Mera osveži. Neasistirani zgib koristi poslednju meru težine do datuma treninga.
           </p>
         </div>
         <form id="body-form" onsubmit="saveBodyMeasurement(event)" style="display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: flex-end;">
@@ -931,6 +931,7 @@
        executed as the sheet owner. The /exec URL is saved in this browser.
        ========================================================================== */
     const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vROONeDV5uHW4UemVFoRrBrt5-3ISRJQDS-9JeNq85a70HW0QrTOuq2ow2C5MThq0XGoMfeC1tP6rIv/pub?output=csv";
+    const BODY_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vROONeDV5uHW4UemVFoRrBrt5-3ISRJQDS-9JeNq85a70HW0QrTOuq2ow2C5MThq0XGoMfeC1tP6rIv/pub?gid=1143646463&single=true&output=csv";
     const LOCAL_WORKOUTS_KEY = 'milan-tracker-workouts-v1';
     const SHEET_APPEND_KEY = 'milan-tracker-sheet-append-url';
     const BODY_KEY = 'milan-tracker-body-v1';
@@ -4370,11 +4371,22 @@
       catch (e) { return ''; }
     }
 
-    function getBodyCsvUrl() {
+    function customBodyCsvUrl() {
       const input = document.getElementById('body-csv-url');
       const typed = input ? input.value.trim() : '';
-      const url = typed || readStoredBodyCsvUrl();
-      return isBodyCsvUrl(url) ? url : '';
+      const chosen = typed || readStoredBodyCsvUrl();
+      if (!isBodyCsvUrl(chosen)) return '';
+      try {
+        const gid = new URL(chosen).searchParams.get('gid') || '';
+        if (!gid || gid === '0') return '';
+      } catch (e) {
+        return '';
+      }
+      return chosen;
+    }
+
+    function getBodyCsvUrl() {
+      return customBodyCsvUrl() || BODY_SHEETS_CSV_URL;
     }
 
     function showImportStatus(text, color) {
@@ -4399,7 +4411,7 @@
       const typed = input.value.trim();
       try { localStorage.setItem(BODY_CSV_KEY, typed); }
       catch (e) { console.warn('Could not store the body CSV address', e); }
-      const url = getBodyCsvUrl();
+      const url = customBodyCsvUrl();
       const isSr = currentLanguage === 'sr';
       if (showStatus && typed && !url) {
         const text = isSr
@@ -4418,7 +4430,7 @@
       if (!input.value) input.value = readStoredBodyCsvUrl();
       const accept = () => {
         const url = rememberBodyCsvUrl(true);
-        if (!url || input.dataset.synced === url) return;
+        if (!url || url === BODY_SHEETS_CSV_URL || input.dataset.synced === url) return;
         input.dataset.synced = url;
         const isSr = currentLanguage === 'sr';
         const reading = isSr ? 'Adresa taba Mera je sačuvana. Čitam objavljeni CSV...' : 'The Mera tab address is saved. Reading the published CSV...';
@@ -4432,7 +4444,7 @@
         });
       };
       input.addEventListener('input', () => {
-        if (getBodyCsvUrl()) accept();
+        if (customBodyCsvUrl()) accept();
       });
       input.addEventListener('change', accept);
     }
@@ -4555,12 +4567,8 @@
       show(isSr ? 'Mera je na sajtu. Upisujem tab Mera...' : 'Saved on the site. Writing the Mera tab...', 'var(--tertiary)');
       postRowsToSheet(url, [entry], 'body').then(() => {
         show(isSr
-          ? (getBodyCsvUrl()
-            ? 'Mera je na sajtu i poslata u tab Mera. CSV adresa je već sačuvana u ovom pregledaču.'
-            : 'Mera je na sajtu i poslata u tab Mera. U Publish to web izaberi tab Mera, format CSV, i nalepi taj link u polje „CSV taba Mera“. Isti link nalepi i na drugom uređaju.')
-          : (getBodyCsvUrl()
-            ? 'Saved on the site and sent to the Mera tab. The CSV address is already saved in this browser.'
-            : 'Saved on the site and sent to the Mera tab. In Publish to web choose the Mera tab, CSV format, and paste that link into “Mera tab CSV”. Paste the same link on the other device too.'),
+          ? 'Mera je na sajtu i poslata u tab Mera. Na telefonu je vidiš kad osvežiš stranicu. Ako je nema odmah, sačekaj minut: objavljeni CSV kasni.'
+          : 'Saved on the site and sent to the Mera tab. Refresh the page on the phone to see it. If it is missing at first, wait a minute: the published CSV lags.',
           'var(--tertiary)');
       });
     }
@@ -4609,8 +4617,19 @@
     }
 
     async function syncBodySheet(options) {
-      const url = getBodyCsvUrl();
-      if (!url) return { ok: false, reason: 'missing' };
+      const preferred = getBodyCsvUrl();
+      const urls = preferred === BODY_SHEETS_CSV_URL ? [preferred] : [preferred, BODY_SHEETS_CSV_URL];
+      let last = { ok: false, reason: 'missing' };
+      for (const url of urls) {
+        if (!url) continue;
+        last = await readBodyCsv(url, options);
+        if (last.ok) return last;
+        if (last.reason !== 'workout') return last;
+      }
+      return last;
+    }
+
+    async function readBodyCsv(url, options) {
       try {
         const response = await fetch(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`, { cache: 'no-store' });
         if (!response.ok) return { ok: false, reason: 'http' };
@@ -4650,8 +4669,8 @@
       if (dateInput && !dateInput.value) dateInput.value = todayISO();
       setElemText('body-title', isSr ? 'Telesna mera' : 'Body measurements');
       setElemText('body-desc', isSr
-        ? 'Težina, struk, ruka i noga. Neasistirani zgib na dan treninga koristi poslednju meru težine do tog datuma.'
-        : 'Weight, waist, arm, and leg. An unassisted pull-up uses the last weight logged on or before that session.');
+        ? 'Težina, struk, ruka i noga. Isti upis vidi i telefon, čim se objavljeni tab Mera osveži. Neasistirani zgib koristi poslednju meru težine do datuma treninga.'
+        : 'Weight, waist, and arm and leg size. The same entry shows on the phone once the published Mera tab refreshes. An unassisted pull-up uses the last weight logged on or before that session.');
       setElemText('lbl-body-date', isSr ? 'Datum' : 'Date');
       setElemText('lbl-body-weight', isSr ? 'Težina (kg)' : 'Weight (kg)');
       setElemText('lbl-body-waist', isSr ? 'Struk (cm)' : 'Waist (cm)');
